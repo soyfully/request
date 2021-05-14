@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <title>가상화폐</title>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+   <script type="text/javascript"
+      src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
+   <link rel="stylesheet" href="{{ static_url('css/app.css') }}" />
+   <script>
+      var baseCurrency = 'krw'
+      var coinsObj = Object
+
+      function push_coin_price_on_message() {
+         ws = new WebSocket("ws://localhost:8888/ws");
+
+         ws.onmessage = function (evt) {
+            coinsObj = JSON.parse(evt.data)
+            console.log(coinsObj)
+
+            push_coin_price()
+         }
+      }
+
+      function push_coin_price() {
+         const coinSymbols = Object.keys(coinsObj)
+
+         for (var n = 0; n < coinSymbols.length; n++) {
+            try {
+               const coinSymbol = coinSymbols[n]
+               if (baseCurrency in coinsObj[coinSymbol] === false) {
+                  continue;
+               }
+
+               // price except krw
+               const coinOpenPrice = coinsObj[coinSymbol][baseCurrency]['open']
+               const coinHighPrice = coinsObj[coinSymbol][baseCurrency]['high']
+               const coinLowPrice = coinsObj[coinSymbol][baseCurrency]['low']
+               const coinClosePrice = coinsObj[coinSymbol][baseCurrency]['close']
+               const coinAmount = coinsObj[coinSymbol][baseCurrency]['amount']
+               const coinCount = coinsObj[coinSymbol][baseCurrency]['count']
+               var dailyChangeRate = ((coinClosePrice - coinOpenPrice) / coinOpenPrice * 100).toFixed(2)
+
+               var coinVolume = coinsObj[coinSymbol][baseCurrency]['vol']
+               
+               if (baseCurrency === 'krw' || baseCurrency === 'usdt') {
+                  coinVolume = coinsObj[coinSymbol][baseCurrency]['vol_million']
+               }
+
+               if (isFinite(dailyChangeRate) === false) {
+                  dailyChangeRate = 0
+               }
+
+               var krwExist = true
+               if ('krw' in coinsObj[coinSymbol] === true) {
+               // krw price               
+               var krwCoinOpenPrice = coinsObj[coinSymbol]['krw']['open']
+               var krwCoinHighPrice = coinsObj[coinSymbol]['krw']['high']
+               var krwCoinLowPrice = coinsObj[coinSymbol]['krw']['low']
+               var krwCoinClosePrice = coinsObj[coinSymbol]['krw']['close']
+               var krwCoinAmount = coinsObj[coinSymbol]['krw']['amount']
+               var krwCoinCount = coinsObj[coinSymbol]['krw']['count']
+               var krwCoinVolume = coinsObj[coinSymbol]['krw']['vol_million']
+               } else {
+                  krwExist = false
+               }
+
+               // initial table to be drawn when user opens web
+               var coin_table_html = `
+                            <tr class="el-table__row " style="height: 60px; cursor: pointer;" id="${coinSymbol}">
+                      <td class="el-table_1_column_1 is-center ">
+                         <div class="cell">
+                            <p data-v-162bd38f="" class="market-tabal-icon"><i data-v-162bd38f="" class="icon-favor text-subtitle fz14 icon-favor-off"></i></p>
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_2  ">
+                         <div class="cell">
+                            <span data-v-162bd38f="" id="solkrw" class="cb inline-block pr15">
+                               <b data-v-162bd38f="" class="icon-name text-main fz14">
+                                 ${coinSymbol}
+                               </b> 
+                               <span data-v-162bd38f="" class="market-symbol lh16 text-tips">
+                                ${coinSymbol}
+                                  <!----> <!----> <!---->
+                               </span>
+                            </span>
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_3 is-right ">
+                         <div class="cell">
+                            <div data-v-162bd38f="" class="market-table">
+                               <p data-v-162bd38f="" class="fz14 lh24 text-main" id="${coinSymbol}_close_price">
+                                  ${coinClosePrice}
+                                  <span data-v-162bd38f="" class="text-subtitle">
+                                 ${baseCurrency.toUpperCase()}
+                                  </span>
+                               </p>
+                               <!---->
+                            </div>
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_4 is-right ">
+                         <div class="cell">
+                            <p data-v-162bd38f="" class="fz14 rate-up"><span data-v-162bd38f="" id="${coinSymbol}_change_rate">
+                              ${dailyChangeRate}%
+                            </p>
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_5 is-right ">
+                         <div class="cell">
+                            <div data-v-162bd38f="" class="fz14 price market-table" id="${coinSymbol}_high_price">
+                               <span data-v-162bd38f="">
+                               ${coinHighPrice}
+                               <span data-v-162bd38f="" class="text-subtitle">
+                              ${baseCurrency.toUpperCase()}
+                               </span></span> <!---->
+                            </div>
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_6 is-right ">
+                         <div class="cell">
+                            <div data-v-162bd38f="" class="fz14 price market-table" id="${coinSymbol}_low_price"> 
+                               <span data-v-162bd38f="">
+                               ${coinLowPrice}
+                               <span data-v-162bd38f="" class="text-subtitle">
+                              ${baseCurrency.toUpperCase()}
+                               </span></span> <!---->
+                            </div>
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_7 is-right ">
+                         <div class="cell">
+                            <span data-v-162bd38f="" class="amount-cell text-main fz14" id="${coinSymbol}_volume">
+                            ${coinVolume}
+                            <span data-v-162bd38f="" class="text-subtitle">
+                            백만
+                            </span></span> <!---->
+                         </div>
+                      </td>
+                      <td class="el-table_1_column_8 is-right edit-box">
+                         <div class="cell">
+                            <div data-v-162bd38f="">
+                               <!----> <!----> <!----> <!----> <a data-v-162bd38f="" href="/ko-kr/exchange/sol_krw" class="go-link text-primary font-bold">
+                               거래
+                               </a> <!---->
+                            </div>
+                         </div>
+                      </td>
+                   </tr>
+                          `
+
+               let coin_row = $('#' + coinSymbol)
+               const Million = '<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>'
+               const currencyUnit = `<span data-v-162bd38f="" class="text-subtitle"> ${baseCurrency.toUpperCase()} </span>`
+               
+               // 그려진 테이블이 없으면 새로 추가하고, 있으면 empty 한 뒤 원래 있던 element 에 append 해준다.
+               // krw 의 경우 밑에 krw 를 추가하면 안되고, 나머지의 경우는 밑에 krw 를 추가해줘야한다.
+               
+               if (baseCurrency !== 'krw' && krwExist === true) { // krw 이외 단위들 && (krw 데이터가 있을 때)
+                  if (!(coin_row.length)) {
+                     $('#coin_table_body').append(coin_table_html)
+                  } 
+
+                  $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit + krw_html(krwCoinClosePrice))
+                  $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit + krw_html(krwCoinHighPrice))
+                  $('#' + coinSymbol + '_low_price').html(coinLowPrice + currencyUnit + krw_html(krwCoinLowPrice))
+                  $('#' + coinSymbol + '_volume').html(coinVolume + Million + krw_html(krwCoinVolume, '백만'))
+                  $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
+               } else { // krw 일때
+                  if (!(coin_row.length)) {
+                     $('#coin_table_body').append(coin_table_html)
+                  } 
+                  $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit)
+                  $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit)
+                  $('#' + coinSymbol + '_low_price').html(coinLowPrice + currencyUnit)
+                  $('#' + coinSymbol + '_volume').html(coinVolume + Million)
+                  $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%') 
+               }
+               
+            } catch (err) {
+               console.log(err.message)
+            }
+         }
+         // dynamic table sorting 
+         $("#coin_table").tablesorter()
+         $("#coin_table").trigger("update").trigger("appendCache")
+      }
+
+      function change_basecurrency_on_tap_event(currency) {
+         $('#coin_table_body').empty()
+         baseCurrency = currency
+         push_coin_price()
+      }
+
+
+      function krw_html(price, currency='KRW') {
+         return  `<p data-v-162bd38f="" class="conversion fz12">
+                  <span data-v-162bd38f="" class="text-holder lh18">
+                  ${price}
+                  </span>
+                  <s data-v-162bd38f="" class="text-holder lh18">
+                  ${currency}
+                  </s>
+                  </p>
+                  `
+      }
+
+
+
+      push_coin_price_on_message()
+
+   </script>
+</head>
+
+<body>
+
+   <div data-v-162bd38f="" data-v-6d40047e="" class="marker-main-index page-main-width text-left main-bg">
+      <div data-v-1737ec65="" data-v-162bd38f="" class="el-card custom-card market-card-index clear-fix is-never-shadow"
+         style="margin-bottom: 10px;">
+         <div class="el-card__header">
+            <div data-v-1737ec65="" class="custom-card-header clear-fix">
+               <!---->
+               <div data-v-1737ec65="" class="card-header-slot">
+                  <div data-v-162bd38f="" class="market-title clear-fix">
+                     <div data-v-162bd38f="" class="search-input-box">
+                        <div data-v-162bd38f="" class="market-radio pt5 fz18 fl clear-fix">
+                           <ul data-v-162bd38f="" class="text-subtitle fl noselect ht-radio-group ">
+                              <li><input type="radio" name="radio" id="radio_favor" value="favor"> <label
+                                    for="radio_favor"><i class="icon-favor-off"></i>
+                                    관심코인
+                                 </label>
+                              </li>
+                              <li>
+                                 <input type="radio" name="radio" id="radio_krw" value="krw"
+                                    onClick="change_basecurrency_on_tap_event(this.value)">
+                                 <label for="radio_krw">
+                                    <!---->
+                                    KRW
+                                 </label>
+                              </li>
+                              <li>
+                                 <input type="radio" name="radio" id="radio_usdt" value="usdt"
+                                    onClick="change_basecurrency_on_tap_event(this.value)">
+                                 <label for="radio_usdt">
+                                    <!---->
+                                    USDT
+                                 </label>
+                              </li>
+                              <li>
+                                 <input type="radio" name="radio" id="radio_btc" value="btc"
+                                    onClick="change_basecurrency_on_tap_event(this.value)">
+                                 <label for="radio_btc">
+                                    <!---->
+                                    BTC
+                                 </label>
+                              </li>
+                              <li>
+                                 <input type="radio" name="radio" id="radio_eth" value="eth"
+                                    onClick="change_basecurrency_on_tap_event(this.value)">
+                                 <label for="radio_eth">
+                                    <!---->
+                                    ETH
+                                 </label>
+                              </li>
+                              <li>
+                                 <input type="radio" name="radio" id="radio_ht" value="ht"
+                                    onClick="change_basecurrency_on_tap_event(this.value)">
+                                 <label for="radio_ht">
+                                    <!---->
+                                    HT
+                                 </label>
+                              </li>
+                           </ul>
+                        </div>
+                        <div data-v-162bd38f=""
+                           class="search-input input-default el-input el-input--mini el-input--suffix fr"><input
+                              data-v-162bd38f="" type="text" autocomplete="off" growing-ignore="true"
+                              class="el-input__inner main-bg fz14 text-uppercase"> <span data-v-162bd38f=""
+                              class="el-input__suffix"><span data-v-162bd38f="" class="el-input__suffix-inner"><i
+                                    data-v-162bd38f="" class="el-input__icon hb-icon-user-search"></i></span></span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="el-card__body">
+            <div data-v-1737ec65="" class="card-body">
+               <div data-v-162bd38f="" class="market-data exchange-pannel">
+                  <div data-v-162bd38f="" id="v-step-market"></div>
+                  <div data-v-162bd38f="" class="table-main">
+                     <div data-v-162bd38f=""
+                        class="el-table hb-el-table market-table el-table--fit el-table--fluid-height el-table--scrollable-y el-table--enable-row-hover el-table--enable-row-transition el-table--mini"
+                        style="width: 100%; max-height: 584px;">
+                        <div class="hidden-columns">
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <div data-v-162bd38f=""></div>
+                           <!---->
+                        </div>
+                        <div class="el-table__body-wrapper is-scrolling-none" style="max-height: 549px;">
+                           <!-- using table sorter to sort rows by colume value-->
+                           <table cellspacing="0" cellpadding="0" border="0" class="tablesorter" style="width: 1275px;"
+                              id="coin_table">
+                              <colgroup>
+                                 <col name="el-table_1_column_1" width="30">
+                                 <col name="el-table_1_column_2" width="152">
+                                 <col name="el-table_1_column_3" width="193">
+                                 <col name="el-table_1_column_4" width="171">
+                                 <col name="el-table_1_column_5" width="193">
+                                 <col name="el-table_1_column_6" width="193">
+                                 <col name="el-table_1_column_7" width="150">
+                                 <col name="el-table_1_column_8" width="193">
+                              </colgroup>
+                              <thead class="has-gutter">
+                                 <tr class="">
+                                    <th colspan="1" rowspan="1" class="el-table_1_column_1  is-center   is-leaf">
+                                       <div class="cell"></div>
+                                    </th>
+                                    <th colspan="1" rowspan="1" class="el-table_1_column_2     is-leaf">
+                                       <div class="cell">코인명</div>
+                                    </th>
+                                    <th colspan="1" rowspan="1"
+                                       class="el-table_1_column_3  is-right   is-leaf is-sortable">
+                                       <div class="cell">가격<span class="caret-wrapper"><i
+                                                class="sort-caret ascending"></i><i
+                                                class="sort-caret descending"></i></span></div>
+                                    </th>
+                                    <th colspan="1" rowspan="1"
+                                       class="el-table_1_column_4  is-right   is-leaf is-sortable">
+                                       <div class="cell">전일대비<span class="caret-wrapper"><i
+                                                class="sort-caret ascending"></i><i
+                                                class="sort-caret descending"></i></span></div>
+                                    </th>
+                                    <th colspan="1" rowspan="1"
+                                       class="el-table_1_column_5  is-right   is-leaf is-sortable">
+                                       <div class="cell">당일고가<span class="caret-wrapper"><i
+                                                class="sort-caret ascending"></i><i
+                                                class="sort-caret descending"></i></span></div>
+                                    </th>
+                                    <th colspan="1" rowspan="1"
+                                       class="el-table_1_column_6  is-right   is-leaf is-sortable">
+                                       <div class="cell">당일저가<span class="caret-wrapper"><i
+                                                class="sort-caret ascending"></i><i
+                                                class="sort-caret descending"></i></span></div>
+                                    </th>
+                                    <th colspan="1" rowspan="1"
+                                       class="el-table_1_column_7  is-right   is-leaf is-sortable">
+                                       <div class="cell">거래대금<span class="caret-wrapper"><i
+                                                class="sort-caret ascending"></i><i
+                                                class="sort-caret descending"></i></span></div>
+                                    </th>
+                                    <th colspan="1" rowspan="1" class="el-table_1_column_8  is-right edit-box  is-leaf">
+                                       <div class="cell">빠른거래</div>
+                                    </th>
+                                    <th class="gutter" style="width: 5px;"></th>
+                                 </tr>
+                              </thead>
+                              <tbody id="coin_table_body">
+                                 <!--coin data insert place-->
+                              </tbody>
+                           </table>
+                           <!---->
+                           <!---->
+                        </div>
+                        <!---->
+                        <!---->
+                        <!---->
+                        <!---->
+                        <div class="el-table__column-resize-proxy" style="display: none;"></div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+
+</body>
+
+</html>
