@@ -17,7 +17,7 @@
       var coinsObj = Object
 
       function push_coin_price_on_message() {
-         ws = new WebSocket("ws://localhost:8888/ws");
+         ws = new WebSocket("ws://localhost:7070/ws");
 
          ws.onmessage = function (evt) {
             coinsObj = JSON.parse(evt.data)
@@ -70,89 +70,37 @@
                   krwExist = false
                }
 
-               // initial table to be drawn when user opens web
                var coin_table_html = `
-                            <tr class="el-table__row " style="height: 60px; cursor: pointer;" id="${coinSymbol}">
-                      <td class="el-table_1_column_1 is-center ">
-                         <div class="cell">
-                            <p data-v-162bd38f="" class="market-tabal-icon"><i data-v-162bd38f="" class="icon-favor text-subtitle fz14 icon-favor-off"></i></p>
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_2  ">
-                         <div class="cell">
-                            <span data-v-162bd38f="" id="solkrw" class="cb inline-block pr15">
-                               <b data-v-162bd38f="" class="icon-name text-main fz14">
-                                 ${coinSymbol}
-                               </b> 
-                               <span data-v-162bd38f="" class="market-symbol lh16 text-tips">
-                                ${coinSymbol}
-                                  <!----> <!----> <!---->
-                               </span>
-                            </span>
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_3 is-right ">
-                         <div class="cell">
-                            <div data-v-162bd38f="" class="market-table">
-                               <p data-v-162bd38f="" class="fz14 lh24 text-main" id="${coinSymbol}_close_price">
-                                  ${coinClosePrice}
-                                  <span data-v-162bd38f="" class="text-subtitle">
-                                 ${baseCurrency.toUpperCase()}
-                                  </span>
-                               </p>
-                               <!---->
-                            </div>
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_4 is-right ">
-                         <div class="cell">
-                            <p data-v-162bd38f="" class="fz14 rate-up"><span data-v-162bd38f="" id="${coinSymbol}_change_rate">
-                              ${dailyChangeRate}%
-                            </p>
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_5 is-right ">
-                         <div class="cell">
-                            <div data-v-162bd38f="" class="fz14 price market-table" id="${coinSymbol}_high_price">
-                               <span data-v-162bd38f="">
-                               ${coinHighPrice}
-                               <span data-v-162bd38f="" class="text-subtitle">
-                              ${baseCurrency.toUpperCase()}
-                               </span></span> <!---->
-                            </div>
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_6 is-right ">
-                         <div class="cell">
-                            <div data-v-162bd38f="" class="fz14 price market-table" id="${coinSymbol}_low_price"> 
-                               <span data-v-162bd38f="">
-                               ${coinLowPrice}
-                               <span data-v-162bd38f="" class="text-subtitle">
-                              ${baseCurrency.toUpperCase()}
-                               </span></span> <!---->
-                            </div>
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_7 is-right ">
-                         <div class="cell">
-                            <span data-v-162bd38f="" class="amount-cell text-main fz14" id="${coinSymbol}_volume">
-                            ${coinVolume}
-                            <span data-v-162bd38f="" class="text-subtitle">
-                            백만
-                            </span></span> <!---->
-                         </div>
-                      </td>
-                      <td class="el-table_1_column_8 is-right edit-box">
-                         <div class="cell">
-                            <div data-v-162bd38f="">
-                               <!----> <!----> <!----> <!----> <a data-v-162bd38f="" href="/ko-kr/exchange/sol_krw" class="go-link text-primary font-bold">
-                               거래
-                               </a> <!---->
-                            </div>
-                         </div>
-                      </td>
-                   </tr>
-                          `
+                  <tr id="${coinSymbol}">
+                     <th>
+                        <span class='coin-name'>${coinSymbol}</span>
+                        <span class='coin-sub-name'>${coinSymbol}</span>
+                     </th>
+                     <th>
+                        <span class='price'>${coinClosePrice}</span>
+                        <span class="price-unit">${baseCurrency.toUpperCase()}</span>
+                     </th>
+                     <th class='compared-wrap up'>
+                        <span class='compared'>${dailyChangeRate}</span>
+                        <span class='arrow'>
+                           <i></i>
+                        </span>
+                     </th>
+                     <th>
+                        <span class='today-high'>${coinHighPrice}</span>
+                        <span class="price-unit">${baseCurrency.toUpperCase()}</span>
+                     </th>
+                     <th>
+                        <span class='today-low'>${coinLowPrice}</span>
+                        <span class="price-unit">${baseCurrency.toUpperCase()}</span>
+                     </th>
+                     <th>
+                        <span class='transaction-price'>${coinVolume}</span>
+                        <span class="price-unit">백만</span>
+                     </th>
+                     <th class='trade-btn'>거래</th>
+                  </tr>
+               `
 
                let coin_row = $('#' + coinSymbol)
                const Million = '<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>'
@@ -163,7 +111,7 @@
                
                if (baseCurrency !== 'krw' && krwExist === true) { // krw 이외 단위들 && (krw 데이터가 있을 때)
                   if (!(coin_row.length)) {
-                     $('#coin_table_body').append(coin_table_html)
+                     $('.put-in-table-here').append(coin_table_html)
                   } 
 
                   $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit + krw_html(krwCoinClosePrice))
@@ -173,7 +121,7 @@
                   $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
                } else { // krw 일때
                   if (!(coin_row.length)) {
-                     $('#coin_table_body').append(coin_table_html)
+                     $('.put-in-table-here').append(coin_table_html)
                   } 
                   $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit)
                   $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit)
@@ -408,8 +356,8 @@
                      <col style="width: 10%;">
                      <col style="width: 10%;">
                   </colgroup>
-                  <tbody>
-                     <tr>
+                  <tbody class='put-in-table-here'>
+                     <!-- <tr>
                         <th>
                            <span class='coin-name'>비트토렌트</span>
                            <span class='coin-sub-name'>BTT</span>
@@ -437,7 +385,7 @@
                            <span class="price-unit">백만</span>
                         </th>
                         <th class='trade-btn'>거래</th>
-                     </tr>
+                     </tr> -->
                   </tbody>
                </table>
             </div>
