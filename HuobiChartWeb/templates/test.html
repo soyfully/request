@@ -11,13 +11,14 @@
    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
    <script type="text/javascript"
       src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
-   <link rel="stylesheet" href="../static/css/app.css">
-   <script>
+   <link rel="stylesheet" href="{{ static_url('css/app.css') }}" />
+
+<script>
       var baseCurrency = 'krw'
       var coinsObj = Object
 
       function push_coin_price_on_message() {
-         ws = new WebSocket("ws://localhost:7070/ws");
+         ws = new WebSocket("ws://localhost:8888/ws");
 
          ws.onmessage = function (evt) {
             coinsObj = JSON.parse(evt.data)
