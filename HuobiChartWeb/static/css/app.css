@@ -52,10 +52,10 @@ table {
 
 
 
-
+/* 
 .wrap {
     padding: 0 30px;
-}
+} */
 .content {
     min-width: 1292px;
     max-width: 1292px;
@@ -90,7 +90,7 @@ table {
     font-size: 12px;
     margin-left: 6px;
 }
-.graph .coin-line .title .coin-sub-name em {
+.graph .coin-line .title .coin-sub-name .name-unit {
     color: #898989;
 }
 .graph .price {  
@@ -285,6 +285,8 @@ table {
     line-height: 60px;
     text-align: right;
     position: relative;
+    font-size: 14px;
+    padding-right: 5px;
 }
 .table-wrap .table-body th:first-child {
     padding-left: 30px;
@@ -292,4 +294,42 @@ table {
 }
 .table-wrap .table-body th:last-child {
     padding-right: 30px;
+}
+.table-wrap .table-body .coin-name {
+    position: absolute;
+    top: -7px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.table-wrap .table-body .coin-sub-name {
+    position: absolute;
+    top: 10px;
+    font-size: 12px;
+    color:#666;
+}
+.table-wrap .table-body .compared-wrap.up .compared{
+    color: #e51e40;
+}
+.table-wrap .table-body .compared-wrap.up .arrow{
+    border: 1px solid #e51e40;
+}
+.table-wrap .table-body .compared-wrap.down .compared{
+    color: #0c59c0;
+}
+.table-wrap .table-body .compared-wrap.down .arrow{
+    border: 1px solid #0c59c0;
+}
+.table-wrap .table-body .compared-wrap .arrow{
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: 1px solid #898989;
+}
+.table-wrap .table-body .price-unit {
+    color: #898989;
+}
+.table-wrap .table-body .trade-btn {
+    font-weight: bold;
+    color: #986f0a;
+    cursor: pointer;
 }
