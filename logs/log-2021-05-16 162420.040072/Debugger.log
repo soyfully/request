@@ -1,0 +1,5 @@
+2021-05-16 16:24:20,042 - DEBUG - 50 - started : Thread-2
+2021-05-16 16:24:20,042 - DEBUG - 54 - started : Huobi Websocket Client
+2021-05-16 16:24:20,159 - DEBUG - 184 - connected to Huobi Websocket Server
+2021-05-16 16:24:20,160 - DEBUG - 190 - subscribed market overview topic
+2021-05-16 16:24:24,384 - DEBUG - 218 - Tornado Websocket Connection Opened
