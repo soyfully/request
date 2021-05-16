@@ -1,0 +1,13 @@
+2021-05-17 00:14:48,610 - DEBUG - 50 - started : Thread-2
+2021-05-17 00:14:48,610 - DEBUG - 54 - started : Huobi Websocket Client
+2021-05-17 00:14:49,750 - DEBUG - 191 - connected to Huobi Websocket Server
+2021-05-17 00:14:49,751 - DEBUG - 197 - subscribed market overview topic
+2021-05-17 00:14:49,751 - DEBUG - 224 - requested bulk kline chart topic
+2021-05-17 00:14:49,751 - DEBUG - 208 - subscribed kline chart topic
+2021-05-17 00:14:49,753 - DEBUG - 224 - requested bulk kline chart topic
+2021-05-17 00:14:49,753 - DEBUG - 208 - subscribed kline chart topic
+2021-05-17 00:14:49,754 - DEBUG - 224 - requested bulk kline chart topic
+2021-05-17 00:14:49,755 - DEBUG - 208 - subscribed kline chart topic
+2021-05-17 00:14:49,756 - DEBUG - 224 - requested bulk kline chart topic
+2021-05-17 00:14:49,757 - DEBUG - 208 - subscribed kline chart topic
+2021-05-17 00:14:55,156 - DEBUG - 284 - Tornado Websocket Connection Opened

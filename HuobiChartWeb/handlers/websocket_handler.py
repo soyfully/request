@@ -64,13 +64,13 @@ class ClientManagerThread(threading.Thread):
 
 
 class MarketOverviewPushThread(threading.Thread):
-    def __init__(self, market_overview_queue, stopped, loop):
+    def __init__(self, huobi_queue, stopped, loop):
         super().__init__()
         self.clients = list()
-        self.market_overview = None
         self.coins_dict = dict()
+        self.kline_dict = dict()
 
-        self.market_overview_queue = market_overview_queue
+        self.huobi_queue = huobi_queue
         self.client_lock = threading.Lock()
         self.stopped = stopped
         self.loop = loop
@@ -78,8 +78,10 @@ class MarketOverviewPushThread(threading.Thread):
     def add_client(self, client):
         with self.client_lock:
             def callback():
-                if self.market_overview:
-                    client.write_message(self.market_overview)
+                if self.coins_dict:
+                    client.write_message(self.coins_dict)
+                if self.kline_dict:
+                    client.write_message(self.kline_dict)
             self.loop.add_callback(callback)
 
             self.clients.append(client)
@@ -90,21 +92,50 @@ class MarketOverviewPushThread(threading.Thread):
 
     def run(self):
         while not self.stopped.is_set():
-            market_overview = self.market_overview_queue.get()
+            data_type, huobi_coin_data = self.huobi_queue.get()
+            
+            if data_type == 'market_overview':
+                market_overview = huobi_coin_data['data']
+                push_data = self.sort_coins_by_symbol(market_overview)
 
-            self.coins_dict = self.sort_coins_by_symbol(market_overview)
+            # get bulk kline data for btckrw, ethkrw, htkrw, usdtkrw
+            elif data_type == 'kline_bulk':
+                symbol = huobi_coin_data['rep'].split('.')[1]
+                kline_symbol = 'kline_{}'.format(symbol)
 
-            if self.coins_dict:
-                with self.client_lock:
-                    for client in self.clients:
-                        data = json.dumps(self.coins_dict)
+                price_list = list()
+                for prices in huobi_coin_data['data']:
+                    close_price = prices['close']
+                    price_list.append(close_price)
 
-                        def callback():
-                            client.write_message(data)
+                self.kline_dict.setdefault(kline_symbol, price_list)                
+                push_data = self.kline_dict
+            
+            # update kline data for btckrw, ethkrw, htkrw, usdtkrw
+            # pop first one, append new one at the end
+            elif data_type == 'kline_update':
+                symbol = huobi_coin_data['ch'].split('.')[1]
+                kline_symbol = 'kline_{}'.format(symbol)
 
-                        # add_callback doesn't work without time.sleep()
-                        self.loop.add_callback(callback)
-                        time.sleep(0.00000001)
+                updated_price = huobi_coin_data['tick']['close']
+
+                price_list = self.kline_dict.get(kline_symbol, None)
+                if price_list:
+                    price_list.pop(0)
+                    price_list.append(updated_price)
+
+                push_data = self.kline_dict
+
+            with self.client_lock:
+                for client in self.clients:
+                    data = json.dumps(push_data)
+
+                    def callback():
+                        client.write_message(data)
+
+                    # add_callback doesn't work without time.sleep()
+                    self.loop.add_callback(callback)
+                    time.sleep(0.00000001)
     
     def sort_coins_by_symbol(self, coins):        
         # to sepreate currency and symbol from combined keys ex)btcusdt, ethbtc
@@ -139,6 +170,7 @@ class MarketOverviewPushThread(threading.Thread):
                                     count=count
                                 )
             
+            # update values in self.coins_dict every time it gets data from huobi
             self.coins_dict[symbol][currency] = coin_info_by_currency
         return self.coins_dict
     
@@ -161,15 +193,14 @@ class MarketOverviewPushThread(threading.Thread):
             return '{:.8f}'.format(price)
 
 
-
 class HuobiClientRunner(object):
     """
         run while loop to get market overview forever
         sends market overview data from websocket to market_overview_queue
     """
-    def __init__(self, market_overview_queue):
+    def __init__(self, huobi_queue):
         self.huobi_client = HuobiMarketOverviewClient()
-        self.market_overview_queue = market_overview_queue
+        self.huobi_queue = huobi_queue
 
         # to run native coroutine in the server background
         IOLoop.current().spawn_callback(self.get_market_overview_forever)
@@ -185,8 +216,19 @@ class HuobiClientRunner(object):
                 time.sleep(1)
 
         self.huobi_client.subscribe_market_overview()
-        self.huobi_client.request_bulk_kline('btckrw')
 
+        self.huobi_client.request_bulk_kline('btckrw')
+        self.huobi_client.subscribe_kline('btckrw')
+
+        self.huobi_client.request_bulk_kline('ethkrw')
+        self.huobi_client.subscribe_kline('ethkrw')
+
+        self.huobi_client.request_bulk_kline('htkrw')
+        self.huobi_client.subscribe_kline('htkrw')
+        
+        self.huobi_client.request_bulk_kline('usdtkrw')
+        self.huobi_client.subscribe_kline('usdtkrw')
+        
         while True:
             msg = await self.huobi_client.get_market_overview()
             if msg is None:
@@ -207,12 +249,15 @@ class HuobiClientRunner(object):
 
                 # get market overview data
                 elif msg.get('ch', '') == 'market.overview':
-                    market_overview = msg['data']
-                    self.market_overview_queue.put(market_overview)
+                    self.huobi_queue.put(('market_overview', msg))
 
+                # get bulk kline data
                 elif 'kline.1min' in msg.get('rep', ''):
-                    print(msg)
-                    
+                    self.huobi_queue.put(('kline_bulk', msg))
+                
+                # update kline 1min data
+                elif 'kline.1min' in msg.get('ch', ''):
+                    self.huobi_queue.put(('kline_update', msg))
 
         debugger.debug('trying to reconnect to Huobi Websocket Server')
         self.get_market_overview_forever()

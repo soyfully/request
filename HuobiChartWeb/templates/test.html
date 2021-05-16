@@ -11,24 +11,45 @@
    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
    <script type="text/javascript"
       src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
+   <script src="https://code.highcharts.com/highcharts.js"></script>
+   <script src="https://code.highcharts.com/modules/data.js"></script>
+   <script src="https://code.highcharts.com/modules/exporting.js"></script>
+   <script src="https://code.highcharts.com/modules/export-data.js"></script>
+   <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+
    <link rel="stylesheet" href="{{ static_url('css/app.css') }}" />
 
-<script>
+   <script>
       var baseCurrency = 'krw'
       var coinsObj = Object
+      var klineObj = Object
+      var btckrwChart = false
 
       // 서버에서 가격정보를 받을때 마다 onmessage 실행
       // 탭이 바뀔 때 마다 baseCurrency 가 바뀜
-      
+
       function push_coin_price_on_message() {
          ws = new WebSocket("ws://localhost:8888/ws");
 
          ws.onmessage = function (evt) {
-            coinsObj = JSON.parse(evt.data)
-            console.log(coinsObj)
-            
+            const parsedData = JSON.parse(evt.data)
+            console.log(parsedData)
+
+            if ('kline_btckrw' in parsedData) { // kline 차트 데이터(총 4개)
+               klineObj = parsedData
+            } else { // 전체 코인 데이터
+               coinsObj = parsedData
+            }
+
             // onmessage 실행될때마다 테이블 업데이트
             push_coin_price()
+
+            if (btckrwChart === false) {
+               btckrwChart = draw_highchart(klineObj['kline_btckrw'])
+            } else {
+               btckrwChart.series[0].setData(klineObj['kline_btckrw'])
+            }
+
          }
       }
 
@@ -52,27 +73,27 @@
                var dailyChangeRate = ((coinClosePrice - coinOpenPrice) / coinOpenPrice * 100).toFixed(2)
 
                var coinVolume = coinsObj[coinSymbol][baseCurrency]['vol']
-               
+
                if (baseCurrency === 'krw' || baseCurrency === 'usdt') {
                   coinVolume = coinsObj[coinSymbol][baseCurrency]['vol_million']
                }
-               
+
                // 0 으로 나눠졌을 때 변동률 0으로 설정
                if (isFinite(dailyChangeRate) === false) {
                   dailyChangeRate = 0
                }
-               
+
                // krw 이 있을 때 true 없을 때 false
                var krwExist = true
                if ('krw' in coinsObj[coinSymbol] === true) {
-               // krw 가격
-               var krwCoinOpenPrice = coinsObj[coinSymbol]['krw']['open']
-               var krwCoinHighPrice = coinsObj[coinSymbol]['krw']['high']
-               var krwCoinLowPrice = coinsObj[coinSymbol]['krw']['low']
-               var krwCoinClosePrice = coinsObj[coinSymbol]['krw']['close']
-               var krwCoinAmount = coinsObj[coinSymbol]['krw']['amount']
-               var krwCoinCount = coinsObj[coinSymbol]['krw']['count']
-               var krwCoinVolume = coinsObj[coinSymbol]['krw']['vol_million']
+                  // krw 가격
+                  var krwCoinOpenPrice = coinsObj[coinSymbol]['krw']['open']
+                  var krwCoinHighPrice = coinsObj[coinSymbol]['krw']['high']
+                  var krwCoinLowPrice = coinsObj[coinSymbol]['krw']['low']
+                  var krwCoinClosePrice = coinsObj[coinSymbol]['krw']['close']
+                  var krwCoinAmount = coinsObj[coinSymbol]['krw']['amount']
+                  var krwCoinCount = coinsObj[coinSymbol]['krw']['count']
+                  var krwCoinVolume = coinsObj[coinSymbol]['krw']['vol_million']
                } else {
                   krwExist = false
                }
@@ -108,20 +129,20 @@
                      <th class='trade-btn'>거래</th>
                   </tr>
                `
-               
+
                // coin_row 는 최초에 그려진 테이블의 element, id 는 coinSymbol
                // 해당 element 가 없으면 테이블이 그려진 적이 없는 것 -> 최초로 그려주어야함
                let coin_row = $('#' + coinSymbol)
                const Million = '<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>'
                const currencyUnit = `<span data-v-162bd38f="" class="text-subtitle"> ${baseCurrency.toUpperCase()} </span>`
-               
+
                // 그려진 테이블이 없으면 새로 추가하고, 있으면 해당 element 값을 empty 한 뒤 원래 있던 element 에 append 해준다.
                // krw 의 경우 밑에 krw 를 추가하면 안되고, 나머지의 경우는 밑에 krw 를 추가해줘야한다.
-               
+
                if (baseCurrency !== 'krw' && krwExist === true) { // krw 이외 단위들 && (krw 데이터가 있을 때) -> 최초에 그려진적 있는지/ 안그려졌는지
                   if (!(coin_row.length)) {
-                     $('.put-in-table-here').append(coin_table_html)
-                  } 
+                     $('#coin_table_body').append(coin_table_html)
+                  }
 
                   $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit + krw_html(krwCoinClosePrice))
                   $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit + krw_html(krwCoinHighPrice))
@@ -130,15 +151,15 @@
                   $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
                } else { // 단위가 krw 일때 -> 최초에 그려진적있는지/ 최초에 안그려졌는지
                   if (!(coin_row.length)) {
-                     $('.put-in-table-here').append(coin_table_html)
-                  } 
+                     $('#coin_table_body').append(coin_table_html)
+                  }
                   $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit)
                   $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit)
                   $('#' + coinSymbol + '_low_price').html(coinLowPrice + currencyUnit)
                   $('#' + coinSymbol + '_volume').html(coinVolume + Million)
-                  $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%') 
+                  $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
                }
-               
+
             } catch (err) {
                console.log(err.message)
             }
@@ -156,8 +177,8 @@
       }
 
       // krw 단위로 표시, krw 탭 외에 btc, ht, eth 는 각각의 가격 밑에 krw 단위가 따로 있음
-      function krw_html(price, currency='KRW') {
-         return  `<p data-v-162bd38f="" class="conversion fz12">
+      function krw_html(price, currency = 'KRW') {
+         return `<p data-v-162bd38f="" class="conversion fz12">
                   <span data-v-162bd38f="" class="text-holder lh18">
                   ${price}
                   </span>
@@ -167,7 +188,73 @@
                   </p>
                   `
       }
-      
+
+      function draw_highchart(data) {
+         var chartOptions = {
+            chart: {
+               zoomType: 'x',
+               renderTo: $('#btckrw_container'),
+               backgroundColor: 'transparent'
+            },
+            title: {
+               text: ''
+            },
+            legend: {
+               enabled: false
+            },
+            credits: {
+               enabled: false
+            },
+            exporting: false,
+            xAxis: {
+               labels: {
+                  enabled: false
+               },
+               title: false,
+               visible: false
+            },
+            yAxis: {
+               labels: {
+                  enabled: false
+               },
+               title: false,
+               visible: false
+            },
+            plotOptions: {
+               area: {
+                  fillColor: {
+                     linearGradient: {
+                        x1: 0,
+                        y1: 0,
+                        x2: 0,
+                        y2: 1,
+                     },
+                     stops: [
+                        [0, '#f9f9f9'],
+                     ]
+                  },
+                  marker: {
+                     radius: 2
+                  },
+                  lineWidth: 1,
+                  states: {
+                     hover: {
+                        lineWidth: 1
+                     }
+                  },
+                  threshold: null
+               }
+            },
+            series: [{
+               type: 'area',
+               data: data
+            }]
+         }
+
+         btckrw_chart = Highcharts.chart('btckrw_container', chartOptions)
+         return btckrw_chart
+      }
+
       push_coin_price_on_message()
 
    </script>
@@ -177,7 +264,7 @@
    <div class='wrap'>
       <div class="content">
          <div class="graph">
-            <div class="coin-line">
+            <div class="coin-line" id='btckrw_container'>
                <div class="title">
                   <span class="coin-name">
                      비트코인
@@ -195,16 +282,16 @@
                   -0.62 %
                </div>
                <div class="amount">
-                  거래대금 :  4,031 백만
+                  거래대금 : 4,031 백만
                </div>
             </div>
             <div class="coin-line">
                <div class="title">
                   <span class="coin-name">
-                     비트코인
+                     이더리움
                   </span>
                   <span class='coin-sub-name'>
-                     <span class="coin-code">BTC</span>
+                     <span class="coin-code">ETH</span>
                      <span class='name-unit'> | KRW </span>
                   </span>
                </div>
@@ -216,16 +303,16 @@
                   -0.62 %
                </div>
                <div class="amount">
-                  거래대금 :  4,031 백만
+                  거래대금 : 4,031 백만
                </div>
             </div>
             <div class="coin-line">
                <div class="title">
                   <span class="coin-name">
-                     비트코인
+                     테더
                   </span>
                   <span class='coin-sub-name'>
-                     <span class="coin-code">BTC</span>
+                     <span class="coin-code">USDT</span>
                      <span class='name-unit'> | KRW </span>
                   </span>
                </div>
@@ -237,16 +324,16 @@
                   -0.62 %
                </div>
                <div class="amount">
-                  거래대금 :  4,031 백만
+                  거래대금 : 4,031 백만
                </div>
             </div>
             <div class="coin-line">
                <div class="title">
                   <span class="coin-name">
-                     비트코인
+                     후오비토큰
                   </span>
                   <span class='coin-sub-name'>
-                     <span class="coin-code">BTC</span>
+                     <span class="coin-code">HT</span>
                      <span class='name-unit'> | KRW </span>
                   </span>
                </div>
@@ -258,7 +345,7 @@
                   -0.62 %
                </div>
                <div class="amount">
-                  거래대금 :  4,031 백만
+                  거래대금 : 4,031 백만
                </div>
             </div>
          </div>
@@ -273,21 +360,27 @@
                      </label>
                   </li>
                   <li>
-                     <input type="radio" name="radio" id="radio_krw" value="krw">
+                     <input type="radio" name="radio" id="radio_krw" value="krw" onclick='change_basecurrency_on_tap_event(this.value)'>
                      <label for="radio_krw">
                         KRW
                      </label>
                   </li>
                   <li>
-                     <input type="radio" name="radio" id="radio_usdt" value="usdt">
+                     <input type="radio" name="radio" id="radio_usdt" value="usdt" onclick='change_basecurrency_on_tap_event(this.value)'>
                      <label for="radio_usdt">
                         USDT
                      </label>
                   </li>
                   <li>
-                     <input type="radio" name="radio" id="radio_btc" value="btc">
+                     <input type="radio" name="radio" id="radio_btc" value="btc" onclick='change_basecurrency_on_tap_event(this.value)'>
                      <label for="radio_btc">
                         BTC
+                     </label>
+                  </li>
+                  <li>
+                     <input type="radio" name="radio" id="radio_ht" value="ht" onclick='change_basecurrency_on_tap_event(this.value)'>
+                     <label for="radio_ht">
+                        HT
                      </label>
                   </li>
                </ul>
@@ -298,9 +391,9 @@
                   </span>
                </div>
             </div>
-            
+
             <div class="table-header">
-               <table>
+               <table id='coin_table'>
                   <colgroup>
                      <col style="width: 10%;">
                      <col style="width: 10%;">
@@ -351,56 +444,17 @@
                         <th>빠른거래</th>
                      </tr>
                   </thead>
+                  <div class="table-body">
+                     <tbody id='coin_table_body'>
+                     </tbody>
+                  </div>
                </table>
             </div>
-            <div class="table-body">
-               <table>
-                  <colgroup>
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                  </colgroup>
-                  <tbody class='put-in-table-here'>
-                     <!-- <tr>
-                        <th>
-                           <span class='coin-name'>비트토렌트</span>
-                           <span class='coin-sub-name'>BTT</span>
-                        </th>
-                        <th>
-                           <span class='price'>7.31</span>
-                           <span class="price-unit">KRW</span>
-                        </th>
-                        <th class='compared-wrap up'>
-                           <span class='compared'>+0.14%</span>
-                           <span class='arrow'>
-                              <i></i>
-                           </span>
-                        </th>
-                        <th>
-                           <span class='today-high'>7.41</span>
-                           <span class="price-unit">KRW</span>
-                        </th>
-                        <th>
-                           <span class='today-low'>7.10</span>
-                           <span class="price-unit">KRW</span>
-                        </th>
-                        <th>
-                           <span class='transaction-price'>2,120</span>
-                           <span class="price-unit">백만</span>
-                        </th>
-                        <th class='trade-btn'>거래</th>
-                     </tr> -->
-                  </tbody>
-               </table>
-            </div>
+
          </div>
       </div>
    </div>
-   
+
 </body>
 
 </html>
