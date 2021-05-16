@@ -106,7 +106,7 @@ class MarketOverviewPushThread(threading.Thread):
                         self.loop.add_callback(callback)
                         time.sleep(0.00000001)
     
-    def sort_coins_by_symbol(self, coins):
+    def sort_coins_by_symbol(self, coins):        
         # to sepreate currency and symbol from combined keys ex)btcusdt, ethbtc
         symbol_regex = re.compile(r'.+(?=usdt|eth|btc|ht|krw)')
 
@@ -116,17 +116,13 @@ class MarketOverviewPushThread(threading.Thread):
             symbol = symbol_regex.match(symbol_with_currency).group()
             currency = symbol_with_currency.replace(symbol, '')
 
-            if currency == 'krw' or currency == 'usdt':
-                formatter = '{:.2f}'
-            else:
-                formatter = '{:.8f}'
-
-            amount = formatter.format(coin['amount'])
-            close = formatter.format(coin['close'])
-            high = formatter.format(coin['high'])
-            low = formatter.format(coin['low'])
-            open = formatter.format(coin['open'])
-            count = formatter.format(coin['count'])
+            amount = self.format_coin_price(currency, coin['amount'])
+            close = self.format_coin_price(currency, coin['close'])
+            high = self.format_coin_price(currency, coin['high'])
+            low = self.format_coin_price(currency, coin['low'])
+            open = self.format_coin_price(currency, coin['open'])
+            count = self.format_coin_price(currency, coin['count'])
+            
             vol = '{:.2f}'.format(coin['vol'])
             vol_million = '{:.2f}'.format(coin['vol'] / 10 ** 6)
 
@@ -145,7 +141,26 @@ class MarketOverviewPushThread(threading.Thread):
             
             self.coins_dict[symbol][currency] = coin_info_by_currency
         return self.coins_dict
-            
+    
+    def format_coin_price(self, currency, price):
+        if currency == 'krw':
+            if price < 1:
+                return '0'
+            elif price < 10:
+                return '{:.2f}'.format(price)
+            elif price < 100:
+                return '{:.1f}'.format(price)
+            else:
+                return int(price)
+        elif currency == 'usdt':
+            if price < 1000:
+                return '{:.4f}'.format(price)
+            else:
+                return '{:.2f}'.format(price)
+        else:
+            return '{:.8f}'.format(price)
+
+
 
 class HuobiClientRunner(object):
     """
@@ -160,14 +175,17 @@ class HuobiClientRunner(object):
         IOLoop.current().spawn_callback(self.get_market_overview_forever)
 
     async def get_market_overview_forever(self):
+        # connection trial for 10 times with 1 sec interval
         for _ in range(10):
             try:
                 await self.huobi_client.ws_connect()
                 break
             except Exception as e:
                 debugger.exception('unexpected error : {}\ntry to reconnect to Huobi Websocket Server'.format(e))
+                time.sleep(1)
 
         self.huobi_client.subscribe_market_overview()
+        self.huobi_client.request_bulk_kline('btckrw')
 
         while True:
             msg = await self.huobi_client.get_market_overview()
@@ -185,13 +203,16 @@ class HuobiClientRunner(object):
                     ping = msg['ping']
                     pong = json.dumps(dict(pong=ping))
 
-                    self.huobi_client.ws_send(pong)
-                # subscribe success messeage is not needed
-                elif 'subbed' in msg:
-                    pass
-                else:
+                    self.huobi_client.ws_send(pong)           
+
+                # get market overview data
+                elif msg.get('ch', '') == 'market.overview':
                     market_overview = msg['data']
                     self.market_overview_queue.put(market_overview)
+
+                elif 'kline.1min' in msg.get('rep', ''):
+                    print(msg)
+                    
 
         debugger.debug('trying to reconnect to Huobi Websocket Server')
         self.get_market_overview_forever()

@@ -11,7 +11,7 @@ import copy
 import gzip
 
 from urllib.parse import urlencode
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from tornado import gen
 from tornado.websocket import websocket_connect
@@ -20,7 +20,7 @@ from io import BytesIO
 
 class Urls(object):
     GET_ACCOUNT = '/v1/account/accounts'
-    
+
     TRADE = '/v1/order/orders/place'
     CANCEL_ORDER = '/v1/order/orders/{order_id}/submitcancel'
     WEBSOCKET = 'wss://api-cloud.huobi.co.kr/ws'
@@ -28,6 +28,8 @@ class Urls(object):
 
 class SubscribeTopics(object):
     MARKET_OVERVIEW = {'sub': 'market.overview'}
+
+    KLINE = "market.{symbol}.kline.1min"
 
 
 class BaseHuobi(object):
@@ -40,7 +42,7 @@ class BaseHuobi(object):
         self.get_headers = {
             "Content-type": "application/x-www-form-urlencoded",
             'User-Agent': ('Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                             'Chrome/39.0.2171.71 Safari/537.36')
+                           'Chrome/39.0.2171.71 Safari/537.36')
         }
 
         self.post_headers = {
@@ -73,7 +75,8 @@ class BaseHuobi(object):
         payload = [method, 'api.huobi.pro', path, encode_qry]
         payload = '\n'.join(payload)
 
-        sign = hmac.new(self._secret.encode('utf-8'), payload.encode('utf-8'), hashlib.sha256).digest()
+        sign = hmac.new(self._secret.encode('utf-8'),
+                        payload.encode('utf-8'), hashlib.sha256).digest()
 
         return base64.b64encode(sign).decode()
 
@@ -91,7 +94,7 @@ class BaseHuobi(object):
                 success=True,
                 data=result['data'],
             )
-    
+
         return res_object
 
     def api_request(self, method, path, params=None):
@@ -99,25 +102,27 @@ class BaseHuobi(object):
             params = {}
 
         sign_data = {
-                    'AccessKeyId': self._key,
-                    'SignatureMethod': 'HmacSHA256',
-                    'SignatureVersion': self.signature_version,
-                    'Timestamp': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
-                     }
+            'AccessKeyId': self._key,
+            'SignatureMethod': 'HmacSHA256',
+            'SignatureVersion': self.signature_version,
+            'Timestamp': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+        }
 
         sign = self.encrypt(method, path, params, sign_data)
         path = self._base_url + path
 
         sign_data['Signature'] = sign
         path += '?' + urlencode(sign_data)
-            
+
         if method == 'GET':
             postdata = urlencode(params)
-            rq = requests.request(method, path, params=postdata, headers=self.get_headers)
+            rq = requests.request(
+                method, path, params=postdata, headers=self.get_headers)
 
         else:
             postdata = json.dumps(params)
-            rq = requests.request(method, path, data=postdata, headers=self.post_headers)
+            rq = requests.request(
+                method, path, data=postdata, headers=self.post_headers)
 
         result = rq.json()
         return self._base_result(result)
@@ -125,17 +130,19 @@ class BaseHuobi(object):
     def http_request(self, method, path, params=None):
         if params is None:
             params = dict()
-        
+
         path = self._base_url + path
-        
+
         if method == 'GET':
             postdata = urlencode(params)
-            rq = requests.request(method, path, params=postdata, headers=self.get_headers)
+            rq = requests.request(
+                method, path, params=postdata, headers=self.get_headers)
 
         else:
             postdata = json.dumps(params)
-            rq = requests.request(method, path, data=postdata, headers=self.post_headers)
-        
+            rq = requests.request(
+                method, path, data=postdata, headers=self.post_headers)
+
         result = rq.json()
         return self._base_result(result)
 
@@ -154,7 +161,7 @@ class BaseHuobi(object):
         return self.api_request('POST', Urls.TRADE, params)
 
     def sell(self, price, amount, coin, is_limit=True):
-        
+
         params = dict()
         if is_limit is True:
             params.update(dict(price=price, type='sell-limit'))
@@ -167,7 +174,7 @@ class BaseHuobi(object):
         debugger.debug("params = {}.".format(params))
 
         return self.api_request('POST', Urls.TRADE, params)
-    
+
     def cancel_order(self, order_object):
         params = dict()
         order_id = order_object.uuid
@@ -189,9 +196,36 @@ class HuobiMarketOverviewClient(object):
         self.ws.write_message(market_overview_topic)
         debugger.debug('subscribed market overview topic')
 
+    def subscribe_kline(self, symbol):
+        kline_topic = {
+            'period': '1min',
+            'sub': SubscribeTopics.KLINE.format(symbol=symbol),
+            'symbol': symbol
+        }
+
+        kline_topic = json.dumps(kline_topic)
+        self.ws.write_message(kline_topic)
+        debugger.debug('subscribed kline chart topic')
+
+    def request_bulk_kline(self, symbol):
+        five_hours_ago_epoch_sec = (datetime.now() - timedelta(hours=5)).timestamp()
+        current_epoch_sec = datetime.now().timestamp()
+
+        kline_topic = {
+            'period': '1min',
+            'req': SubscribeTopics.KLINE.format(symbol=symbol),
+            'symbol': symbol,
+            'from': five_hours_ago_epoch_sec,
+            'to': current_epoch_sec
+        }
+
+        kline_topic = json.dumps(kline_topic)
+        self.ws.write_message(kline_topic)
+        debugger.debug('requested bulk kline chart topic')
+
     def get_market_overview(self):
         return self.ws.read_message()
-    
+
     def ws_close(self):
         self.ws.close()
         debugger.debug('Huobi Websocket connection closed')

@@ -17,13 +17,17 @@
       var baseCurrency = 'krw'
       var coinsObj = Object
 
+      // 서버에서 가격정보를 받을때 마다 onmessage 실행
+      // 탭이 바뀔 때 마다 baseCurrency 가 바뀜
+      
       function push_coin_price_on_message() {
          ws = new WebSocket("ws://localhost:8888/ws");
 
          ws.onmessage = function (evt) {
             coinsObj = JSON.parse(evt.data)
             console.log(coinsObj)
-
+            
+            // onmessage 실행될때마다 테이블 업데이트
             push_coin_price()
          }
       }
@@ -38,7 +42,7 @@
                   continue;
                }
 
-               // price except krw
+               // krw 가격 이외의 코인들
                const coinOpenPrice = coinsObj[coinSymbol][baseCurrency]['open']
                const coinHighPrice = coinsObj[coinSymbol][baseCurrency]['high']
                const coinLowPrice = coinsObj[coinSymbol][baseCurrency]['low']
@@ -52,14 +56,16 @@
                if (baseCurrency === 'krw' || baseCurrency === 'usdt') {
                   coinVolume = coinsObj[coinSymbol][baseCurrency]['vol_million']
                }
-
+               
+               // 0 으로 나눠졌을 때 변동률 0으로 설정
                if (isFinite(dailyChangeRate) === false) {
                   dailyChangeRate = 0
                }
-
+               
+               // krw 이 있을 때 true 없을 때 false
                var krwExist = true
                if ('krw' in coinsObj[coinSymbol] === true) {
-               // krw price               
+               // krw 가격
                var krwCoinOpenPrice = coinsObj[coinSymbol]['krw']['open']
                var krwCoinHighPrice = coinsObj[coinSymbol]['krw']['high']
                var krwCoinLowPrice = coinsObj[coinSymbol]['krw']['low']
@@ -102,15 +108,17 @@
                      <th class='trade-btn'>거래</th>
                   </tr>
                `
-
+               
+               // coin_row 는 최초에 그려진 테이블의 element, id 는 coinSymbol
+               // 해당 element 가 없으면 테이블이 그려진 적이 없는 것 -> 최초로 그려주어야함
                let coin_row = $('#' + coinSymbol)
                const Million = '<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>'
                const currencyUnit = `<span data-v-162bd38f="" class="text-subtitle"> ${baseCurrency.toUpperCase()} </span>`
                
-               // 그려진 테이블이 없으면 새로 추가하고, 있으면 empty 한 뒤 원래 있던 element 에 append 해준다.
+               // 그려진 테이블이 없으면 새로 추가하고, 있으면 해당 element 값을 empty 한 뒤 원래 있던 element 에 append 해준다.
                // krw 의 경우 밑에 krw 를 추가하면 안되고, 나머지의 경우는 밑에 krw 를 추가해줘야한다.
                
-               if (baseCurrency !== 'krw' && krwExist === true) { // krw 이외 단위들 && (krw 데이터가 있을 때)
+               if (baseCurrency !== 'krw' && krwExist === true) { // krw 이외 단위들 && (krw 데이터가 있을 때) -> 최초에 그려진적 있는지/ 안그려졌는지
                   if (!(coin_row.length)) {
                      $('.put-in-table-here').append(coin_table_html)
                   } 
@@ -120,7 +128,7 @@
                   $('#' + coinSymbol + '_low_price').html(coinLowPrice + currencyUnit + krw_html(krwCoinLowPrice))
                   $('#' + coinSymbol + '_volume').html(coinVolume + Million + krw_html(krwCoinVolume, '백만'))
                   $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
-               } else { // krw 일때
+               } else { // 단위가 krw 일때 -> 최초에 그려진적있는지/ 최초에 안그려졌는지
                   if (!(coin_row.length)) {
                      $('.put-in-table-here').append(coin_table_html)
                   } 
@@ -135,18 +143,19 @@
                console.log(err.message)
             }
          }
-         // dynamic table sorting 
+         // dynamic table sorting coin_table id 로 table 을 찾은 뒤 tablesorter() 설정
          $("#coin_table").tablesorter()
          $("#coin_table").trigger("update").trigger("appendCache")
       }
 
+      // 탭이 변경될 때 마다 테이블 새로 그려주기 위해 push_coin_price() 실행
       function change_basecurrency_on_tap_event(currency) {
          $('#coin_table_body').empty()
          baseCurrency = currency
          push_coin_price()
       }
 
-
+      // krw 단위로 표시, krw 탭 외에 btc, ht, eth 는 각각의 가격 밑에 krw 단위가 따로 있음
       function krw_html(price, currency='KRW') {
          return  `<p data-v-162bd38f="" class="conversion fz12">
                   <span data-v-162bd38f="" class="text-holder lh18">
@@ -158,9 +167,7 @@
                   </p>
                   `
       }
-
-
-
+      
       push_coin_price_on_message()
 
    </script>
