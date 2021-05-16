@@ -11,7 +11,7 @@
    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
    <script type="text/javascript"
       src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
-   <link rel="stylesheet" href="{{ static_url('css/app.css') }}" />
+   <link rel="stylesheet" href="../static/css/app.css">
    <script>
       var baseCurrency = 'krw'
       var coinsObj = Object
@@ -218,174 +218,134 @@
 </head>
 
 <body>
-
-   <div data-v-162bd38f="" data-v-6d40047e="" class="marker-main-index page-main-width text-left main-bg">
-      <div data-v-1737ec65="" data-v-162bd38f="" class="el-card custom-card market-card-index clear-fix is-never-shadow"
-         style="margin-bottom: 10px;">
-         <div class="el-card__header">
-            <div data-v-1737ec65="" class="custom-card-header clear-fix">
-               <!---->
-               <div data-v-1737ec65="" class="card-header-slot">
-                  <div data-v-162bd38f="" class="market-title clear-fix">
-                     <div data-v-162bd38f="" class="search-input-box">
-                        <div data-v-162bd38f="" class="market-radio pt5 fz18 fl clear-fix">
-                           <ul data-v-162bd38f="" class="text-subtitle fl noselect ht-radio-group ">
-                              <li><input type="radio" name="radio" id="radio_favor" value="favor"> <label
-                                    for="radio_favor"><i class="icon-favor-off"></i>
-                                    관심코인
-                                 </label>
-                              </li>
-                              <li>
-                                 <input type="radio" name="radio" id="radio_krw" value="krw"
-                                    onClick="change_basecurrency_on_tap_event(this.value)">
-                                 <label for="radio_krw">
-                                    <!---->
-                                    KRW
-                                 </label>
-                              </li>
-                              <li>
-                                 <input type="radio" name="radio" id="radio_usdt" value="usdt"
-                                    onClick="change_basecurrency_on_tap_event(this.value)">
-                                 <label for="radio_usdt">
-                                    <!---->
-                                    USDT
-                                 </label>
-                              </li>
-                              <li>
-                                 <input type="radio" name="radio" id="radio_btc" value="btc"
-                                    onClick="change_basecurrency_on_tap_event(this.value)">
-                                 <label for="radio_btc">
-                                    <!---->
-                                    BTC
-                                 </label>
-                              </li>
-                              <li>
-                                 <input type="radio" name="radio" id="radio_eth" value="eth"
-                                    onClick="change_basecurrency_on_tap_event(this.value)">
-                                 <label for="radio_eth">
-                                    <!---->
-                                    ETH
-                                 </label>
-                              </li>
-                              <li>
-                                 <input type="radio" name="radio" id="radio_ht" value="ht"
-                                    onClick="change_basecurrency_on_tap_event(this.value)">
-                                 <label for="radio_ht">
-                                    <!---->
-                                    HT
-                                 </label>
-                              </li>
-                           </ul>
-                        </div>
-                        <div data-v-162bd38f=""
-                           class="search-input input-default el-input el-input--mini el-input--suffix fr"><input
-                              data-v-162bd38f="" type="text" autocomplete="off" growing-ignore="true"
-                              class="el-input__inner main-bg fz14 text-uppercase"> <span data-v-162bd38f=""
-                              class="el-input__suffix"><span data-v-162bd38f="" class="el-input__suffix-inner"><i
-                                    data-v-162bd38f="" class="el-input__icon hb-icon-user-search"></i></span></span>
-                        </div>
-                     </div>
-                  </div>
+   <div class='wrap'>
+      <div class="content">
+         <div class="graph">
+            <div class="coin-line">
+               <div class="title">
+                  <span class="coin-name">
+                     비트코인
+                  </span>
+                  <span class='coin-sub-name'>
+                     BTC <em> | KRW </em>
+                  </span>
+               </div>
+               <div class="price">
+                  <span class='price-num'>123,123,123,123</span>
+                  <span class='price-unit'>KRW</span>
+               </div>
+               <div class="rate no-rise">
+                  -0.62 %
+               </div>
+               <div class="amount">
+                  거래대금 :  4,031 백만
+               </div>
+            </div>
+            <div class="coin-line">
+               <div class="title">
+                  <span class="coin-name">
+                     비트코인
+                  </span>
+                  <span class='coin-sub-name'>
+                     BTC <em> | KRW </em>
+                  </span>
+               </div>
+               <div class="price down">
+                  <span class='price-num'>123,123,123,123</span>
+                  <span class='price-unit'>KRW</span>
+               </div>
+               <div class="rate down">
+                  -0.62 %
+               </div>
+               <div class="amount">
+                  거래대금 :  4,031 백만
+               </div>
+            </div>
+            <div class="coin-line">
+               <div class="title">
+                  <span class="coin-name">
+                     비트코인
+                  </span>
+                  <span class='coin-sub-name'>
+                     BTC <em> | KRW </em>
+                  </span>
+               </div>
+               <div class="price up">
+                  <span class='price-num'>123,123,123,123</span>
+                  <span class='price-unit'>KRW</span>
+               </div>
+               <div class="rate up">
+                  -0.62 %
+               </div>
+               <div class="amount">
+                  거래대금 :  4,031 백만
+               </div>
+            </div>
+            <div class="coin-line">
+               <div class="title">
+                  <span class="coin-name">
+                     비트코인
+                  </span>
+                  <span class='coin-sub-name'>
+                     BTC <em> | KRW </em>
+                  </span>
+               </div>
+               <div class="price">
+                  <span class='price-num'>123,123,123,123</span>
+                  <span class='price-unit'>KRW</span>
+               </div>
+               <div class="rate no-rise">
+                  -0.62 %
+               </div>
+               <div class="amount">
+                  거래대금 :  4,031 백만
                </div>
             </div>
          </div>
-         <div class="el-card__body">
-            <div data-v-1737ec65="" class="card-body">
-               <div data-v-162bd38f="" class="market-data exchange-pannel">
-                  <div data-v-162bd38f="" id="v-step-market"></div>
-                  <div data-v-162bd38f="" class="table-main">
-                     <div data-v-162bd38f=""
-                        class="el-table hb-el-table market-table el-table--fit el-table--fluid-height el-table--scrollable-y el-table--enable-row-hover el-table--enable-row-transition el-table--mini"
-                        style="width: 100%; max-height: 584px;">
-                        <div class="hidden-columns">
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <div data-v-162bd38f=""></div>
-                           <!---->
-                        </div>
-                        <div class="el-table__body-wrapper is-scrolling-none" style="max-height: 549px;">
-                           <!-- using table sorter to sort rows by colume value-->
-                           <table cellspacing="0" cellpadding="0" border="0" class="tablesorter" style="width: 1275px;"
-                              id="coin_table">
-                              <colgroup>
-                                 <col name="el-table_1_column_1" width="30">
-                                 <col name="el-table_1_column_2" width="152">
-                                 <col name="el-table_1_column_3" width="193">
-                                 <col name="el-table_1_column_4" width="171">
-                                 <col name="el-table_1_column_5" width="193">
-                                 <col name="el-table_1_column_6" width="193">
-                                 <col name="el-table_1_column_7" width="150">
-                                 <col name="el-table_1_column_8" width="193">
-                              </colgroup>
-                              <thead class="has-gutter">
-                                 <tr class="">
-                                    <th colspan="1" rowspan="1" class="el-table_1_column_1  is-center   is-leaf">
-                                       <div class="cell"></div>
-                                    </th>
-                                    <th colspan="1" rowspan="1" class="el-table_1_column_2     is-leaf">
-                                       <div class="cell">코인명</div>
-                                    </th>
-                                    <th colspan="1" rowspan="1"
-                                       class="el-table_1_column_3  is-right   is-leaf is-sortable">
-                                       <div class="cell">가격<span class="caret-wrapper"><i
-                                                class="sort-caret ascending"></i><i
-                                                class="sort-caret descending"></i></span></div>
-                                    </th>
-                                    <th colspan="1" rowspan="1"
-                                       class="el-table_1_column_4  is-right   is-leaf is-sortable">
-                                       <div class="cell">전일대비<span class="caret-wrapper"><i
-                                                class="sort-caret ascending"></i><i
-                                                class="sort-caret descending"></i></span></div>
-                                    </th>
-                                    <th colspan="1" rowspan="1"
-                                       class="el-table_1_column_5  is-right   is-leaf is-sortable">
-                                       <div class="cell">당일고가<span class="caret-wrapper"><i
-                                                class="sort-caret ascending"></i><i
-                                                class="sort-caret descending"></i></span></div>
-                                    </th>
-                                    <th colspan="1" rowspan="1"
-                                       class="el-table_1_column_6  is-right   is-leaf is-sortable">
-                                       <div class="cell">당일저가<span class="caret-wrapper"><i
-                                                class="sort-caret ascending"></i><i
-                                                class="sort-caret descending"></i></span></div>
-                                    </th>
-                                    <th colspan="1" rowspan="1"
-                                       class="el-table_1_column_7  is-right   is-leaf is-sortable">
-                                       <div class="cell">거래대금<span class="caret-wrapper"><i
-                                                class="sort-caret ascending"></i><i
-                                                class="sort-caret descending"></i></span></div>
-                                    </th>
-                                    <th colspan="1" rowspan="1" class="el-table_1_column_8  is-right edit-box  is-leaf">
-                                       <div class="cell">빠른거래</div>
-                                    </th>
-                                    <th class="gutter" style="width: 5px;"></th>
-                                 </tr>
-                              </thead>
-                              <tbody id="coin_table_body">
-                                 <!--coin data insert place-->
-                              </tbody>
-                           </table>
-                           <!---->
-                           <!---->
-                        </div>
-                        <!---->
-                        <!---->
-                        <!---->
-                        <!---->
-                        <div class="el-table__column-resize-proxy" style="display: none;"></div>
-                     </div>
-                  </div>
+         <div class="table-wrap">
+            <div class="table-header">
+               <ul>
+                  <li>
+                     <input type="radio" name="radio" id="radio_favor" value="favor">
+                     <label for="radio_favor">
+                        <i class="icon-favor-off"></i>
+                        관심코인
+                     </label>
+                  </li>
+                  <li>
+                     <input type="radio" name="radio" id="radio_krw" value="krw">
+                     <label for="radio_krw">
+                        KRW
+                     </label>
+                  </li>
+                  <li>
+                     <input type="radio" name="radio" id="radio_usdt" value="usdt">
+                     <label for="radio_usdt">
+                        USDT
+                     </label>
+                  </li>
+                  <li>
+                     <input type="radio" name="radio" id="radio_btc" value="btc">
+                     <label for="radio_btc">
+                        BTC
+                     </label>
+                  </li>
+               </ul>
+               <div class="search-input">
+                  <input type="text" autocomplete="off" growing-ignore="true" class="search-input-inner">
+                  <span class="">
+                     <i class=""></i>
+                  </span>
                </div>
+            </div>
+            
+            <div class="table-body">
+   
             </div>
          </div>
       </div>
    </div>
-
+   
 </body>
 
 </html>
