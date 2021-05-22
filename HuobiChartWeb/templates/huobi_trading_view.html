@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ko-KR" class="theme-day" data-vue-meta="lang,class" data-hide-zendesk="true">
+
+<head>
+    <meta charset="utf-8">
+    <title>50,000,000 BTC/KRW | Huobi 후오비</title>
+    <link href="/static/css/app.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
+
+    <script>
+        // 첫 화면 들어갔을 때 기본 마켓 krw 로 설정, 탭 누를때마다 onclick event 로 변경됨
+        var coinMarketType = 'krw'
+        var displayAmountOrVolume = 'volume'
+        var tradingViewCurrency = 'eth-usdt'
+
+        var coinsObj = Object()
+
+        var coinTableRowObj = function(
+            coinSymbol,
+            coinMarketType,
+            coinOpenPrice,
+            coinHighPrice,
+            coinLowPrice,
+            coinClosePrice,
+            coinKoreanName,
+            coinVolume,
+            coinAmount
+        ) {
+            this.coinSymbol = coinSymbol
+            this.coinMarketType = coinMarketType
+            this.coinOpenPrice = coinOpenPrice
+            this.coinHighPrice = coinHighPrice
+            this.coinLowPrice = coinLowPrice
+            this.coinClosePrice = coinClosePrice
+            this.coinKoreanName = coinKoreanName
+            this.coinVolume = coinVolume
+            this.coinAmount = coinAmount
+        }
+
+        // 서버에서 가격정보를 받을때 마다 onmessage 실행
+        // 탭이 바뀔 때 마다 baseCurrency 가 바뀜
+
+        function push_coin_price_on_message() {
+            ws = new WebSocket("ws://localhost:8888/ws");
+
+            ws.onmessage = function(evt) { // onmessage evt 는 두종류 -> 1. kline 차트데이터  2. 전체 코인데이터
+                const parsedData = JSON.parse(evt.data)
+                console.log(parsedData)
+
+                if ('kline_btckrw' in parsedData === false) { // kline 차트가 아니면 전체 코인데이터
+                    coinsObj = parsedData
+                }
+                // onmessage 실행될때마다 테이블 & 트레이딩 뷰 헤더부분 업데이트
+                // 테이블 업데이트 함수
+                push_coin_price()
+                push_trading_view_header_price()
+            }
+        }
+
+        function push_coin_price() {
+            // 관심코인 / 일반코인마켓들 나누기
+            const favorList = JSON.parse(localStorage.getItem('favorList'))
+            if (coinMarketType === 'favor') { // 관심코인 탭
+
+                if (Array.isArray(favorList) && favorList.length === 0) { // 로컬스토리지에 관심코인 아무것도 없을때
+                    const emptyTableHtml = `<div data-v-1df60166="" class="no-data" style="height: 342px;">
+                                                <p data-v-1df60166="" class="text-subtitle fz12">관심코인이 없습니다.</p>
+                                            </div>`
+
+                    if (!$('.no-data').length) {
+                        $('#coin-table-body').append(emptyTableHtml)
+                    }
+
+                } else { // 관심코인 있을때
+                    for (var n = 0; n < favorList.length; n++) {
+                        try {
+                            const favorCoin = favorList[n].split('-')
+                            const coinSymbol = favorCoin[0]
+                            const coinMarketType = favorCoin[1]
+
+                            const coinOpenPrice = coinsObj[coinSymbol][coinMarketType]['open']
+                            const coinHighPrice = coinsObj[coinSymbol][coinMarketType]['high']
+                            const coinLowPrice = coinsObj[coinSymbol][coinMarketType]['low']
+                            const coinClosePrice = coinsObj[coinSymbol][coinMarketType]['close']
+                            const coinKoreanName = coinsObj[coinSymbol][coinMarketType]['currency_name']
+                            const coinVolume = coinsObj[coinSymbol][coinMarketType]['vol']
+                            const coinAmount = coinsObj[coinSymbol][coinMarketType]['amount']
+
+                            const favorCoinTableRow = new coinTableRowObj(
+                                coinSymbol,
+                                coinMarketType,
+                                coinOpenPrice,
+                                coinHighPrice,
+                                coinLowPrice,
+                                coinClosePrice,
+                                coinKoreanName,
+                                coinVolume,
+                                coinAmount
+                            )
+
+                            // 관심코인 true 면 별표를 킴
+                            const isFavorCoin = true
+                            draw_coin_table(favorCoinTableRow, isFavorCoin)
+
+                        } catch (e) {
+                            console.log(e.message)
+                        }
+                    }
+                }
+
+            } else { // 일반코인마켓 탭
+
+                const coinSymbols = Object.keys(coinsObj)
+                for (var n = 0; n < coinSymbols.length; n++) {
+                    try {
+                        const coinSymbol = coinSymbols[n]
+                            // if base currency market does not contain this coin, skips this iteration
+                        if (coinMarketType in coinsObj[coinSymbol] === false) {
+                            continue;
+                        }
+
+                        // price except krw
+                        const coinOpenPrice = coinsObj[coinSymbol][coinMarketType]['open']
+                        const coinHighPrice = coinsObj[coinSymbol][coinMarketType]['high']
+                        const coinLowPrice = coinsObj[coinSymbol][coinMarketType]['low']
+                        const coinClosePrice = coinsObj[coinSymbol][coinMarketType]['close']
+                        const coinKoreanName = coinsObj[coinSymbol][coinMarketType]['currency_name']
+                        const coinVolume = coinsObj[coinSymbol][coinMarketType]['vol']
+                        const coinAmount = coinsObj[coinSymbol][coinMarketType]['amount']
+
+                        const generalCoinTableRow = new coinTableRowObj(
+                            coinSymbol,
+                            coinMarketType,
+                            coinOpenPrice,
+                            coinHighPrice,
+                            coinLowPrice,
+                            coinClosePrice,
+                            coinKoreanName,
+                            coinVolume,
+                            coinAmount
+                        )
+
+                        // 해당코인이 관심코인인지 체크
+
+                        let isFavorCoin = false
+                        const checkFavorCoin = `${coinSymbol}-${coinMarketType}` //  로컬스토리지에 eth-krw, btc-krw 로 되어있음
+                        if (favorList.includes(checkFavorCoin)) {
+                            isFavorCoin = true
+                        }
+
+                        draw_coin_table(generalCoinTableRow, isFavorCoin)
+
+                    } catch (err) {
+                        console.log(err.message)
+                    }
+                }
+            }
+
+            // dynamic table sorting 
+            $("#coin_table").tablesorter({
+                headers: {
+                    2: {
+                        sorter: 'commaSeperatedSorter'
+                    },
+                    4: {
+                        sorter: 'commaSeperatedSorter'
+                    }
+                },
+            })
+            $("#coin_table").trigger("update").trigger("appendCache")
+
+        }
+
+        function draw_coin_table(coinTableRowObj, isFavorCoin) {
+            const coinMarketType = coinTableRowObj.coinMarketType
+            const coinSymbol = coinTableRowObj.coinSymbol
+            const coinOpenPrice = coinTableRowObj.coinOpenPrice
+            const coinHighPrice = coinTableRowObj.coinHighPrice
+            const coinLowPrice = coinTableRowObj.coinLowPrice
+            const coinClosePrice = coinTableRowObj.coinClosePrice
+            const coinKoreanName = coinTableRowObj.coinKoreanName
+            const coinVolume = coinTableRowObj.coinVolume
+            const coinAmount = coinTableRowObj.coinAmount
+
+            let dailyChangeRate = ((coinClosePrice - coinOpenPrice) / coinOpenPrice * 100).toFixed(2)
+            if (isFinite(dailyChangeRate) === false) {
+                dailyChangeRate = 0
+            }
+
+            // 거래량/거래대금은 백만 이상이면 '백만' 단위가 붙음, 100 이하면 소수점 두자리까지 표기
+            // 거래대금/거래량 탭을 누르면 전역변수 amountOrVolume 탭이 바뀜
+            // volume 이면 formattedCoinVolume 이 거래대금으로, amount 는 거래량으로 설정
+
+            let formattedCoinVolume = format_volume(coinVolume)
+            if (displayAmountOrVolume === 'amount') {
+                formattedCoinVolume = format_volume(coinAmount)
+            }
+
+            // 전일대비 변동률에 따라 빨강 파랑 업다운 바뀌는 로직, 마이너스는 지정안해도 - 표시가 뜸
+            let changeRateColorClassName = 'fz12'
+            let changeRateArrorwClassName = ''
+            let ratePlusMinus = ''
+
+            if (dailyChangeRate > 0) {
+                changeRateColorClassName = 'fz12 rate-up'
+                changeRateArrorwClassName = `el-icon-caret-top`
+                ratePlusMinus = '+'
+            } else if (dailyChangeRate < 0) {
+                changeRateColorClassName = 'fz12 rate-down'
+                changeRateArrorwClassName = 'el-icon-caret-bottom'
+                ratePlusMinus = ''
+            }
+
+            // "관심코인을 등록해주세요" 엘리먼트 있으면 삭제
+            $('.el-table__empty-block').remove()
+
+            // 관심코인 탭에서는 USDT / KRW 이런식으로 나옴
+            let coinMarketTypeSubText = ''
+            if (isFavorCoin) {
+                coinMarketTypeSubText = ` / ${coinMarketType.toUpperCase()}`
+            }
+
+            // initial table to be drawn when user opens web
+            var coin_table_html = `
+                    <tr class="el-table__row " style="height: 48px; cursor: pointer;" id="${coinSymbol}">
+                      <td class="el-table_3_column_19 is-center ">
+                         <div class="cell">
+                            <p data-v-162bd38f="" class="market-tabal-icon">
+                                <i data-v-162bd38f="" class="icon-favor text-subtitle fz12 icon-favor-off" id="${coinSymbol}-${coinMarketType}" onClick="manage_favor_coin(this.id)"></i>
+                            </p>
+                         </div>
+                      </td>
+                      <td class="el-table_3_column_20  ">
+                         <div class="cell">
+                            <span data-v-162bd38f="" class="cb market-coin-name">
+                               <b data-v-162bd38f="" class="icon-name text-main fz12">
+                                 ${coinKoreanName}
+                               </b> 
+                               <span data-v-162bd38f="" class="market-symbol text-tips flex-start-center">
+                                ${coinSymbol.toUpperCase()}${coinMarketTypeSubText}
+                                  <!----> <!----> <!---->
+                               </span>
+                            </span>
+                         </div>
+                      </td>
+                      <td class="el-table_3_column_21 is-right ">
+                         <div class="cell">
+                            <div data-v-162bd38f="" class="market-table">
+                               <p data-v-162bd38f="" class="${changeRateColorClassName}" id="${coinSymbol}_close_price">
+                                  ${toFloat(coinMarketType, coinClosePrice)}
+                               </p>
+                               <!---->
+                            </div>
+                         </div>
+                      </td>
+                        <td class="el-table_3_column_22 is-right ">
+                         <div class="cell">
+                            <p data-v-162bd38f="" class="${changeRateColorClassName}" id="${coinSymbol}_color"><span data-v-162bd38f="" id="${coinSymbol}_change_rate">
+                              ${ratePlusMinus}${dailyChangeRate}
+                              %
+                              </span>
+                            </p>
+                         </div>
+                      </td>
+                      <td class="el-table_3_column_23 is-right ">
+                         <div class="cell">
+                            <div data-v-162bd38f="" class="market-table right-last" id="${coinSymbol}_volume">
+                                <p data-v-1df60166="" class="text-main">
+                                ${formattedCoinVolume}                            
+                                </p>
+                            </div>
+                         </div>
+                      </td>
+                     
+                   </tr>
+                          `
+
+            let coin_row = $('#' + coinSymbol)
+
+            // 그려진 테이블이 없으면 새로 추가하고, 있으면 empty 한 뒤 원래 있던 element 에 append 해준다.
+            // krw 의 경우 밑에 krw 를 추가하면 안되고, 나머지의 경우는 밑에 krw 를 추가해줘야한다.
+
+            if (coinMarketType !== 'krw') { // krw 이외 단위들
+                if (!(coin_row.length)) {
+                    $('#coin_table_body').append(coin_table_html)
+                }
+
+                // krw 환율로 변경한 코인 가격 (테이블 row 원래 가격 아래에 나오는 krw 가격)
+                const krwRate = coinsObj[coinMarketType]['krw']['close']
+                const krwCoinHighPrice = coinHighPrice * krwRate
+                const krwCoinLowPrice = coinLowPrice * krwRate
+                const krwCoinClosePrice = coinClosePrice * krwRate
+
+                $('#' + coinSymbol + '_close_price').html(toFloat(coinMarketType, coinClosePrice) + krw_html(toFloat('krw', krwCoinClosePrice)))
+
+                let krwCoinVolume = coinVolume * krwRate
+                krwCoinVolume = format_volume(krwCoinVolume, coinMarketType)
+                $('#' + coinSymbol + '_volume').html(formattedCoinVolume + krw_html(krwCoinVolume, ''))
+
+            } else { // krw 일때
+                if (!(coin_row.length)) {
+                    $('#coin_table_body').append(coin_table_html)
+                }
+                $('#' + coinSymbol + '_close_price').html(toFloat('krw', coinClosePrice))
+                $('#' + coinSymbol + '_volume').html(formattedCoinVolume)
+            }
+
+            // changeRate 0 보다 크면 빨강, 작으면 파랑으로 바뀌도록 class 명 바꿔주기
+            const changeRateColorHtml = $(`#${coinSymbol}_color`)
+
+            changeRateColorHtml.attr('class', changeRateColorClassName)
+            $('#' + coinSymbol + '_change_rate').html(ratePlusMinus + dailyChangeRate + '%')
+
+            if (isFavorCoin) { // 만약 isFavorCoin 파라미터 인자를 true 로 받으면 해당 row 는 관심코인이라는 뜻 -> 관심코인 별표 켜기
+                const favorCoin = `${coinSymbol}-${coinMarketType}`
+                const favorStarOnOff = 'on'
+                on_off_favor_coin_star(favorCoin, favorStarOnOff)
+            }
+        }
+
+        function push_trading_view_header_price() {
+            const currencyMarket = tradingViewCurrency.split('-')
+            const coinSymbol = currencyMarket[0]
+            const coinMarketType = currencyMarket[1]
+
+            const coinOpenPrice = coinsObj[coinSymbol][coinMarketType]['open']
+            const coinHighPrice = coinsObj[coinSymbol][coinMarketType]['high']
+            const coinLowPrice = coinsObj[coinSymbol][coinMarketType]['low']
+            const coinClosePrice = coinsObj[coinSymbol][coinMarketType]['close']
+            const coinKoreanName = coinsObj[coinSymbol][coinMarketType]['currency_name']
+            const coinVolume = coinsObj[coinSymbol][coinMarketType]['vol']
+            const coinAmount = coinsObj[coinSymbol][coinMarketType]['amount']
+            const coinImage = coinsObj[coinSymbol][coinMarketType]['icon_img_url']
+
+            const dailyChangeDiff = coinClosePrice - coinOpenPrice
+            let dailyChangeRate = (dailyChangeDiff / coinOpenPrice * 100).toFixed(2)
+            if (isFinite(dailyChangeRate) === false) {
+                dailyChangeRate = 0
+            }
+
+            let rateUpDownColor = ''
+            let ratePlusMinus = ''
+
+            if (dailyChangeRate > 0) {
+                rateUpDownColor = 'text-up'
+                ratePlusMinus = '+'
+            } else if (dailyChangeRate < 0) {
+                rateUpDownColor = 'text-down'
+                ratePlusMinus = ''
+            }
+
+            $('#trading-view-recent-price').html(toFloat(coinMarketType, coinClosePrice))
+            $('#trading-view-recent-price').attr('class', `recent-price font-bold ${rateUpDownColor}`)
+
+            // krw 마켓 이외에서만 krw 가격 표시
+            const krwCoinClosePrice = coinsObj[coinSymbol]['krw']['close']
+
+            if (coinMarketType !== 'krw') {
+                if ($('.equal-krw').length) {
+                    $('#krw-price').html(toFloat(coinMarketType, krwCoinClosePrice))
+                } else {
+                    $('#recent-price-holder').append(`<span data-v-68a1faa6="" class="equal-krw">
+                                                    <span data-v-68a1faa6="" class="equal-krw" id="krw-price">
+                                                                        ${toFloat(coinMarketType, krwCoinClosePrice)}
+                                                    </span> 
+                                                        KRW
+                                                </span>`)
+                }
+            }
+
+            $('#trading-view-change-rate').html(`${ratePlusMinus}${dailyChangeRate}%`)
+            $('#trading-view-change-rate').attr('class', rateUpDownColor)
+
+            $('#trading-view-change-diff').html(`${ratePlusMinus}${toFloat(coinMarketType, dailyChangeDiff)}`)
+            $('#trading-view-change-diff').attr('class', rateUpDownColor)
+
+            $('#trading-view-high-price').html(toFloat(coinMarketType, coinHighPrice))
+            $('#trading-view-low-price').html(toFloat(coinMarketType, coinLowPrice))
+
+            $('#trading-view-amount').html(coinAmount)
+            $('#trading-view-volume').html(coinVolume)
+
+            console.log($('#currency-image'))
+            $('#currency-image').attr('src', coinImage)
+
+            // 코인한글명 심볼/마켓
+
+            const coinTranslated = $(".seo-tag")[0]
+            const coinSymbolMarket = $(".seo-tag")[1]
+            $(coinTranslated).html(coinKoreanName)
+            $(coinSymbolMarket).html(
+                `<span data-v-68a1faa6="">
+                    ${coinSymbol.toUpperCase()}
+                </span>
+                /
+                <span data-v-68a1faa6="" class="quote-coin">
+                    ${coinMarketType.toUpperCase()}
+                </span>`)
+        }
+
+        function change_market_type_on_tap_event(currency) {
+            $('#coin_table_body').empty()
+            coinMarketType = currency
+            push_coin_price()
+
+            // 관심코인 별 표시 on off 탭 변경시마다 해줘야함
+            if (currency === 'favor') {
+                $('#favor-coin-tab').attr('class', 'icon-favor-on')
+            } else {
+                $('#favor-coin-tab').attr('class', 'icon-favor-off')
+            }
+        }
+
+        function change_amount_or_volume(obj) {
+            const isBefore = (obj.getAttribute('data') === 'before')
+            if (isBefore) {
+                $('#amount-vol-icon').attr('class', 'hb-icon-user-change text-primary')
+                $('#amount-vol-text').attr('class', 'text-primary')
+                $('#amount-vol-col').html(`거래량(24H)
+                                           <span class="caret-wrapper">
+                                             <i class="sort-caret ascending"></i>
+                                             <i class="sort-caret descending"></i>
+                                           </span>`)
+
+                displayAmountOrVolume = 'amount'
+                $(obj).attr('data', 'after')
+            } else {
+                $('#amount-vol-icon').attr('class', 'hb-icon-user-change')
+                $('#amount-vol-text').attr('class', '')
+                $('#amount-vol-col').html(`거래대금(24H)
+                                           <span class="caret-wrapper">
+                                             <i class="sort-caret ascending"></i>
+                                             <i class="sort-caret descending"></i>
+                                           </span>`)
+
+                displayAmountOrVolume = 'volume'
+                $(obj).attr('data', 'before')
+            }
+
+            push_coin_price()
+        }
+
+        function manage_favor_coin(favorCoin) {
+            let favorList = JSON.parse(localStorage.getItem('favorList'))
+            let favorStarOnOff = 'off'
+
+            if (!favorList) {
+                favorList = Array()
+                favorList.push(favorCoin)
+
+                localStorage.setItem('favorList', JSON.stringify(favorList))
+                favorStarOnOff = 'on'
+
+            } else if (favorList.includes(favorCoin)) {
+                const ModifiedfavorList = favorList.filter(val => val !== favorCoin)
+                localStorage.setItem('favorList', JSON.stringify(ModifiedfavorList))
+                favorStarOnOff = 'off'
+
+            } else {
+                favorList.push(favorCoin)
+                localStorage.setItem('favorList', JSON.stringify(favorList))
+                favorStarOnOff = 'on'
+            }
+
+            on_off_favor_coin_star(favorCoin, favorStarOnOff)
+        }
+
+        function on_off_favor_coin_star(favorCoin, favorStarOnOff) {
+            $(`#${favorCoin}`).attr('class', `icon-favor text-subtitle fz12 icon-favor-${favorStarOnOff}`)
+        }
+
+        function krw_html(price, currency = 'KRW') {
+            return `<p data-v-162bd38f="" class="conversion fz12">
+                  <span data-v-162bd38f="" class="text-holder lh18">
+                  ${price}
+                  </span>
+                  <s data-v-162bd38f="" class="text-holder lh18">
+                  ${currency}
+                  </s>
+                  </p>
+                  `
+        }
+
+        function toFloat(currency, number) {
+            let maximumFractionDigits = 16
+
+            if (currency === 'krw') {
+                if (number < 10) {
+                    maximumFractionDigits = 2
+                } else if (number < 100) {
+                    maximumFractionDigits = 1
+                } else {
+                    maximumFractionDigits = 0
+                }
+            } else if (currency === 'usdt') {
+                if (number < 1) {
+                    maximumFractionDigits = 6
+                } else if (number < 1000) {
+                    maximumFractionDigits = 4
+                } else {
+                    maximumFractionDigits = 2
+                }
+            }
+
+            const formatted = number.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: maximumFractionDigits,
+            })
+
+            return formatted
+        }
+
+        function format_volume(number, coinMarketType) {
+            if (number > 10 ** 8) {
+                if (coinMarketType === 'krw' || coinMarketType === 'usdt') {
+                    let millionFormat = `<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>`
+                } else {
+                    millionFormat = '백만'
+                }
+                return `${(number / 10 ** 6).toLocaleString('en-US', { maximumFractionDigits: 0 })} ${millionFormat}`
+
+            } else if (number > 10 ** 6) {
+                if (coinMarketType === 'krw' || coinMarketType === 'usdt') {
+                    let millionFormat = `<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>`
+                } else {
+                    millionFormat = '백만'
+                }
+                return `${(number / 10 ** 6).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${millionFormat}`
+
+            } else if (number < 100) {
+                return number.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })
+            } else {
+                return `${number.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            }
+        }
+
+        // tablesorter parser for sorting without comma
+        $(document).ready(function() {
+            jQuery.tablesorter.addParser({
+                id: "commaSeperatedSorter",
+                is: function(s) {
+                    return /^[0-9]?[0-9,\.]*$/.test(s);
+                },
+                format: function(s) { // 콤마는 없애고 '백만' 단위 환산해서 비교
+                    const stringFirstLine = s.split('\n')[0]
+
+                    let parsedNumber = $.tablesorter.formatFloat(stringFirstLine.replace(/,/g, '').replace('+', ''))
+                    if (stringFirstLine.includes('백만')) {
+                        parsedNumber = $.tablesorter.formatFloat(parsedNumber * (10 ** 6))
+                    }
+                    return parsedNumber
+                },
+                type: "numeric"
+            })
+        })
+
+        // coin name search function
+        $(document).ready(function() {
+            $("#search-box-keyword").keyup(function() {
+                var value = $(this).val().toUpperCase();
+                $("#coin_table > tbody > tr").hide();
+                // 4 는 컬럼 총 개수, 1는 그중 검색할 컬럼 인덱스
+                var temp = $("#coin_table > tbody > tr > td:nth-child(4n+2):contains('" + value + "')");
+                $(temp).parent().show();
+            })
+        })
+
+
+        $(document).ready(function() { // favorList 로컬스토리지에 [] 디폴트 세팅하기
+            let favorList = JSON.parse(localStorage.getItem('favorList'))
+
+            if (!favorList) {
+                favorList = Array()
+                localStorage.setItem('favorList', JSON.stringify(favorList))
+            }
+        })
+
+        // websocket on message 마다 가격정보 갱신해주는 함수 실행, 클라이언트 연결 끊길때 까지 계속실행
+        push_coin_price_on_message()
+    </script>
+
+</head>
+
+<body>
+    <div id="app">
+        <div data-v-8c89ebd8="" class="l-body">
+            <div data-v-8c89ebd8="" class="l-main">
+                <div data-v-3f3bf58c="" data-v-8c89ebd8="" class="exchange-wrapper">
+                    <div data-v-3f3bf58c="" class="exchange-main">
+                        <!---->
+                        <div data-v-3f3bf58c="" class="l-box" style="position: sticky; top: 10px;">
+                            <div data-v-3f3bf58c="" class="market-box">
+                                <div data-v-621cd54c="" data-v-3f3bf58c="" class="marker-main main-bg border-table" style="height: 743px;">
+                                    <div data-v-1737ec65="" data-v-621cd54c="" class="el-card custom-card market-card is-never-shadow">
+                                        <div class="el-card__header">
+                                            <div data-v-1737ec65="" class="custom-card-header clear-fix">
+                                                <!---->
+                                                <div data-v-1737ec65="" class="card-header-slot">
+                                                    <div data-v-621cd54c="" class="market-title clear-fix">
+                                                        <div data-v-621cd54c="" class="market-radio fl">
+                                                            <ul data-v-621cd54c="" class="text-subtitle noselect ht-radio-group ">
+                                                                <li><input type="radio" name="radio" id="radio_favor" value="favor" onClick="change_market_type_on_tap_event(this.value)">
+                                                                    <label for="radio_favor"><i class="icon-favor-off"
+                                                                            id="favor-coin-tab"></i>
+                                                                        관심코인
+                                                                    </label>
+                                                                </li>
+                                                                <li>
+                                                                    <input type="radio" name="radio" id="radio_krw" value="krw" onClick="change_market_type_on_tap_event(this.value)">
+                                                                    <label for="radio_krw">
+                                                                        <!---->
+                                                                        KRW
+                                                                    </label>
+                                                                </li>
+                                                                <li>
+                                                                    <input type="radio" name="radio" id="radio_usdt" value="usdt" onClick="change_market_type_on_tap_event(this.value)">
+                                                                    <label for="radio_usdt">
+                                                                        <!---->
+                                                                        USDT
+                                                                    </label>
+                                                                </li>
+                                                                <li>
+                                                                    <input type="radio" name="radio" id="radio_btc" value="btc" onClick="change_market_type_on_tap_event(this.value)">
+                                                                    <label for="radio_btc">
+                                                                        <!---->
+                                                                        BTC
+                                                                    </label>
+                                                                </li>
+                                                                <li>
+                                                                    <input type="radio" name="radio" id="radio_eth" value="eth" onClick="change_market_type_on_tap_event(this.value)">
+                                                                    <label for="radio_eth">
+                                                                        <!---->
+                                                                        ETH
+                                                                    </label>
+                                                                </li>
+                                                                <li>
+                                                                    <input type="radio" name="radio" id="radio_ht" value="ht" onClick="change_market_type_on_tap_event(this.value)">
+                                                                    <label for="radio_ht">
+                                                                        <!---->
+                                                                        HT
+                                                                    </label>
+                                                                </li>
+                                                                <!-- <li>
+                                                                    <input type="radio" name="radio" id="radio_balance" value="balance">
+                                                                    <label for="radio_balance">
+                                                                        보유 자산
+                                                                    </label>
+                                                                </li> -->
+                                                            </ul>
+                                                        </div>
+                                                        <div data-v-621cd54c="" id="v-step-market"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="el-card__body">
+                                            <div data-v-1737ec65="" class="card-body">
+                                                <div data-v-621cd54c="" class="market-data exchange-pannel">
+                                                    <div data-v-621cd54c="" class="search-input-box clear-fix border-table-bottom input-default">
+                                                        <div data-v-621cd54c="" class="search-input el-input el-input--mini el-input--suffix fl">
+                                                            <input data-v-621cd54c="" type="text" autocomplete="off" growing-ignore="true" class="el-input__inner text-uppercase" id="search-box-keyword">
+                                                            <span data-v-621cd54c="" class="el-input__suffix"><span
+                                                                    data-v-621cd54c="" class="el-input__suffix-inner"><i
+                                                                        data-v-621cd54c=""
+                                                                        class="el-input__icon hb-icon-user-search"></i></span></span>
+                                                        </div>
+                                                        <div data-v-621cd54c="" class="amount-vol fr noselect text-main flex-start-center" data="before" onclick="change_amount_or_volume(this)">
+                                                            <i data-v-621cd54c="" class="hb-icon-user-change" id='amount-vol-icon'></i> <span data-v-621cd54c="" class="" id="amount-vol-text">
+                                                                거래량
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div data-v-1df60166="" data-v-621cd54c="" class="table-main">
+                                                        <!---->
+                                                        <!---->
+                                                        <div data-v-1df60166="" class="el-table hb-el-table market-table-box el-table--fit el-table--scrollable-y el-table--enable-row-hover el-table--enable-row-transition el-table--mini" style="height: 647px;">
+                                                            <div class="hidden-columns">
+                                                                <div data-v-1df60166=""></div>
+                                                                <div data-v-1df60166=""></div>
+                                                                <div data-v-1df60166=""></div>
+                                                                <div data-v-1df60166=""></div>
+                                                                <!---->
+                                                                <div data-v-1df60166=""></div>
+                                                            </div>
+
+                                                            <div class="el-table__body-wrapper is-scrolling-none" style="height: 623px;" id='coin-table-body'>
+                                                                <table cellspacing="0" cellpadding="0" border="0" class="tablesorter" style="width: 415px;" id="coin_table">
+                                                                    <colgroup>
+                                                                        <col name="el-table_3_column_19" width="22">
+                                                                        <col name="el-table_3_column_20" width="120">
+                                                                        <col name="el-table_3_column_21" width="103">
+                                                                        <col name="el-table_3_column_22" width="70">
+                                                                        <col name="el-table_3_column_23" width="100">
+                                                                        <col name="gutter" width="0">
+                                                                    </colgroup>
+                                                                    <thead class="has-gutter">
+                                                                        <tr class="">
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_19  is-center   is-leaf">
+                                                                                <div class="cell"></div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_20     is-leaf">
+                                                                                <div class="cell">코인명</div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_21  is-right   is-leaf is-sortable">
+                                                                                <div class="cell">현재가<span class="caret-wrapper"><i
+                                                                                            class="sort-caret ascending"></i><i
+                                                                                            class="sort-caret descending"></i></span>
+                                                                                </div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_22  is-right   is-leaf is-sortable">
+                                                                                <div class="cell">전일대비<span class="caret-wrapper"><i
+                                                                                            class="sort-caret ascending"></i><i
+                                                                                            class="sort-caret descending"></i></span>
+                                                                                </div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_23 descending is-right   is-leaf is-sortable">
+                                                                                <div class="cell" id="amount-vol-col">거래대금(24H)
+                                                                                    <span class="caret-wrapper">
+                                                                                        <i class="sort-caret ascending"></i>
+                                                                                        <i class="sort-caret descending"></i>
+                                                                                    </span>
+                                                                                </div>
+                                                                            </th>
+                                                                            <th class="gutter" style="width: 0px; display: none;"></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="coin_table_body" class="el-table__body">
+                                                                        <!---->
+                                                                    </tbody>
+                                                                </table>
+                                                                <!-- <div class="el-table__empty-block" style="width: 415px;"><span class="el-table__empty-text">해당 코인에 대한 검색결과가
+                                                                        없습니다.</span></div> -->
+                                                                <!---->
+                                                            </div>
+                                                            <!---->
+                                                            <!---->
+                                                            <!---->
+                                                            <!---->
+                                                            <div class="el-table__column-resize-proxy" style="display: none;"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!---->
+                        </div>
+                        <div data-v-3f3bf58c="" class="r-box">
+                            <div data-v-3f3bf58c="" class="exchange-center exchange-kline">
+                                <div data-v-68a1faa6="" data-v-3f3bf58c="" class="kline-box main-bg">
+                                    <div data-v-1737ec65="" data-v-68a1faa6="" class="el-card custom-card kline-card is-never-shadow">
+                                        <div class="el-card__header">
+                                            <div data-v-1737ec65="" class="custom-card-header clear-fix">
+                                                <!---->
+                                                <div data-v-1737ec65="" class="card-header-slot">
+                                                    <div data-v-68a1faa6="" class="kline-header fix">
+                                                        <ul data-v-68a1faa6="" class="fl kline-info-list">
+                                                            <li data-v-68a1faa6="" class="li-name">
+                                                                <img data-v-68a1faa6="" width="36" height="36" src="https://static.huobi.co.kr/huobicokrimg/20190628/9abf0d3324184e45baacbbd8b914a5a5" class="font-currency fl" id="currency-image">
+                                                                <div data-v-68a1faa6="" class="coin-name fl">
+                                                                    <h2 data-v-68a1faa6="" class="seo-tag translate-name">비트코인</h2>
+                                                                    <h2 data-v-68a1faa6="" class="seo-tag text-tips">
+                                                                        <span data-v-68a1faa6="">BTC</span>/<span data-v-68a1faa6="" class="quote-coin">KRW</span>
+                                                                    </h2>
+                                                                </div>
+                                                                <!---->
+                                                                <ul data-v-68a1faa6="" class="other-box border-table main-bg box-shadow-gray">
+                                                                    <li data-v-68a1faa6="" class="clear-fix text-main">
+                                                                        <span data-v-68a1faa6="" class="fl">
+                                                                            BTC/USDT
+                                                                        </span> <span data-v-68a1faa6="" class="fr text-down">
+                                                                            -2.94%
+                                                                        </span>
+                                                                    </li>
+                                                                    <li data-v-68a1faa6="" class="clear-fix text-main">
+                                                                        <span data-v-68a1faa6="" class="fl">
+                                                                            BTC/KRW
+                                                                        </span> <span data-v-68a1faa6="" class="fr text-down">
+                                                                            -2.34%
+                                                                        </span>
+                                                                    </li>
+                                                                </ul>
+                                                                <i data-v-68a1faa6="" class="el-icon-caret-bottom icon-bot"></i>
+                                                            </li>
+                                                            <li data-v-68a1faa6="" growing-ignore="true" class="price-box border-nav-left">
+                                                                <p data-v-68a1faa6="" class="text-subtitle" id="recent-price-holder">
+                                                                    <span data-v-68a1faa6="" class="recent-price font-bold text-down" id="trading-view-recent-price">
+                                                                        50,000,000
+                                                                    </span>
+
+                                                                    <!---->
+                                                                </p>
+                                                                <p data-v-68a1faa6="" class="bottom text-subtitle">
+                                                                    <span data-v-68a1faa6="">
+                                                                        전일대비 &nbsp;
+                                                                    </span> <span data-v-68a1faa6="" class="text-down" id="trading-view-change-rate">
+                                                                        -2.34% &nbsp;
+                                                                    </span> <span data-v-68a1faa6="" class="text-down" id="trading-view-change-diff">
+                                                                        -1,200,000.00
+                                                                    </span>
+                                                                    <!---->
+                                                                </p>
+                                                            </li>
+                                                        </ul>
+                                                        <ul data-v-68a1faa6="" growing-ignore="true" class="fr kline-info-list info-right">
+                                                            <li data-v-68a1faa6="" class="li-left border-nav-right">
+                                                                <p data-v-68a1faa6="" class="bottom clear-fix text-subtitle">
+                                                                    <span data-v-68a1faa6="" class="fl">고가</span>
+                                                                    <span data-v-68a1faa6="" class="fr">
+                                                                        <span data-v-68a1faa6=""
+                                                                            class="span-r rate-color font-bold text-up" id="trading-view-high-price">
+                                                                            52,500,000
+                                                                        </span>
+                                                                    <!---->
+                                                                    </span>
+                                                                </p>
+                                                                <p data-v-68a1faa6="" class="bottom bot-box clear-fix text-subtitle">
+                                                                    <span data-v-68a1faa6="" class="fl">저가</span>
+                                                                    <span data-v-68a1faa6="" class="fr">
+                                                                        <span data-v-68a1faa6=""
+                                                                            class="span-r rate-color font-bold text-down" id="trading-view-low-price">
+                                                                            48,208,000
+                                                                        </span>
+                                                                    <!---->
+                                                                    </span>
+                                                                </p>
+                                                            </li>
+                                                            <li data-v-68a1faa6="" class="li-right">
+                                                                <p data-v-68a1faa6="" class="bottom clear-fix text-subtitle"><span data-v-68a1faa6="" class="fl">거래량(24H)</span>
+                                                                    <span data-v-68a1faa6="" class="fr text-main"><span
+                                                                            data-v-68a1faa6="" class="font-bold" id="trading-view-amount">
+                                                                            169.6679
+                                                                        </span> <i data-v-68a1faa6="" class="text-subtitle">BTC</i></span>
+                                                                </p>
+                                                                <p data-v-68a1faa6="" class="bottom bot-box clear-fix text-subtitle"><span data-v-68a1faa6="" class="fl">거래대금</span> <span data-v-68a1faa6="" class="fr text-main"><span
+                                                                            data-v-68a1faa6="" class="font-bold" id="trading-view-volume">
+                                                                            8,579,123,277.4030
+                                                                        </span> <i data-v-68a1faa6="" class="text-subtitle">KRW</i></span>
+                                                                </p>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="el-card__body">
+                                            <!--trading view body 부분-->
+                                            <div data-v-1737ec65="" class="card-body"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!---->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,5 +1,0 @@
-2021-05-16 18:53:29,779 - DEBUG - 50 - started : Thread-2
-2021-05-16 18:53:29,779 - DEBUG - 54 - started : Huobi Websocket Client
-2021-05-16 18:53:29,917 - DEBUG - 191 - connected to Huobi Websocket Server
-2021-05-16 18:53:29,918 - DEBUG - 197 - subscribed market overview topic
-2021-05-16 18:53:29,918 - DEBUG - 224 - requested bulk kline chart topic

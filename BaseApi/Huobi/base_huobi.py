@@ -18,12 +18,18 @@ from tornado.websocket import websocket_connect
 from io import BytesIO
 
 
+HUOBI_CHART_BULK_DATA_HOURS = 3
+
+
 class Urls(object):
     GET_ACCOUNT = '/v1/account/accounts'
 
     TRADE = '/v1/order/orders/place'
     CANCEL_ORDER = '/v1/order/orders/{order_id}/submitcancel'
+
     WEBSOCKET = 'wss://api-cloud.huobi.co.kr/ws'
+
+    GET_CRYPTO_LIST = 'https://www.huobi.co.kr/-/g/open/v1/currency/name/list'
 
 
 class SubscribeTopics(object):
@@ -180,20 +186,40 @@ class BaseHuobi(object):
         order_id = order_object.uuid
         return self.api_request('POST', Urls.CANCEL_ORDER.format(order_id=order_id), params)
 
+    def get_all_currency(self):
+        url = Urls.GET_CRYPTO_LIST
+        headers = {'accept-language': 'ko-KR'}
+        res = requests.get(url, headers=headers)
 
-class HuobiMarketOverviewClient(object):
+        currencies = json.loads(res.content)['data']
+        currency_codes = dict()
+        for currency in currencies:
+            currency_code = currency['currency_code']
+            currency_name = currency['currency_name']
+            icon_img      = currency['icon_img']
+
+            currency_codes.setdefault(currency_code, dict())
+            
+            currency_codes[currency_code] = dict(
+                currency_name=currency_name,
+                icon_img=icon_img
+            )
+        debugger.debug('received all currencies information')
+        return currency_codes
+
+class HuobiWebsocketClient(object):
     def __init__(self):
-        self.url = Urls.WEBSOCKET
-        self.ws = None
+        self._base_url = Urls.WEBSOCKET
+        self._ws = None
 
     async def ws_connect(self):
-        self.ws = await websocket_connect(self.url)
+        self._ws = await websocket_connect(self._base_url)
         debugger.debug('connected to Huobi Websocket Server')
-        return self.ws
+        return self._ws
 
     def subscribe_market_overview(self):
         market_overview_topic = json.dumps(SubscribeTopics.MARKET_OVERVIEW)
-        self.ws.write_message(market_overview_topic)
+        self._ws.write_message(market_overview_topic)
         debugger.debug('subscribed market overview topic')
 
     def subscribe_kline(self, symbol):
@@ -204,31 +230,35 @@ class HuobiMarketOverviewClient(object):
         }
 
         kline_topic = json.dumps(kline_topic)
-        self.ws.write_message(kline_topic)
+        self._ws.write_message(kline_topic)
         debugger.debug('subscribed kline chart topic')
 
     def request_bulk_kline(self, symbol):
-        five_hours_ago_epoch_sec = (datetime.now() - timedelta(hours=5)).timestamp()
+        """ get bulk data for n hours (60 elements in a list per an hour)  
+        """
+        hours_ago_epoch_sec = (datetime.now() - timedelta(hours=HUOBI_CHART_BULK_DATA_HOURS)).timestamp()
         current_epoch_sec = datetime.now().timestamp()
 
         kline_topic = {
             'period': '1min',
             'req': SubscribeTopics.KLINE.format(symbol=symbol),
             'symbol': symbol,
-            'from': five_hours_ago_epoch_sec,
+            'from': hours_ago_epoch_sec,
             'to': current_epoch_sec
         }
 
         kline_topic = json.dumps(kline_topic)
-        self.ws.write_message(kline_topic)
+        self._ws.write_message(kline_topic)
         debugger.debug('requested bulk kline chart topic')
 
-    def get_market_overview(self):
-        return self.ws.read_message()
+    def get_huobi_data(self):
+        """ return awaitable object, it should be awaited
+        """
+        return self._ws.read_message()
 
     def ws_close(self):
-        self.ws.close()
+        self._ws.close()
         debugger.debug('Huobi Websocket connection closed')
 
     def ws_send(self, message):
-        self.ws.write_message(message)
+        self._ws.write_message(message)

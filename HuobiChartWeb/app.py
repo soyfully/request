@@ -9,7 +9,7 @@ import asyncio
 import settings
 import queue
 
-from handlers.websocket_handler import WSHandler, ClientManagerThread, MainPageHandler
+from handlers.websocket_handler import WSHandler, ClientManagerThread, MainPageHandler, TradingViewPageHandler
 
 
 if sys.platform == 'win32':
@@ -30,6 +30,7 @@ if __name__ == "__main__":
     application = tornado.web.Application([
         (r"/ws", WSHandler, dict(client_queue=client_queue)),
         (r'/main', MainPageHandler),
+        (r'/main/exchange', TradingViewPageHandler)
     ], **settings)
 
     http_server = tornado.httpserver.HTTPServer(application)

@@ -1,460 +1,408 @@
-<!DOCTYPE html>
-<html lang="en">
+<html data-hide-zendesk="true" lang="ko-KR" class="theme-day" data-vue-meta="lang,class">
 
 <head>
-   <title>가상화폐</title>
-   <meta charset="utf-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1">
-   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
-   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
-   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
-   <script type="text/javascript"
-      src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
-   <script src="https://code.highcharts.com/highcharts.js"></script>
-   <script src="https://code.highcharts.com/modules/data.js"></script>
-   <script src="https://code.highcharts.com/modules/exporting.js"></script>
-   <script src="https://code.highcharts.com/modules/export-data.js"></script>
-   <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-
-   <link rel="stylesheet" href="{{ static_url('css/app.css') }}" />
-
-   <script>
-      var baseCurrency = 'krw'
-      var coinsObj = Object
-      var klineObj = Object
-      var btckrwChart = false
-
-      // 서버에서 가격정보를 받을때 마다 onmessage 실행
-      // 탭이 바뀔 때 마다 baseCurrency 가 바뀜
-
-      function push_coin_price_on_message() {
-         ws = new WebSocket("ws://localhost:8888/ws");
-
-         ws.onmessage = function (evt) {
-            const parsedData = JSON.parse(evt.data)
-            console.log(parsedData)
-
-            if ('kline_btckrw' in parsedData) { // kline 차트 데이터(총 4개)
-               klineObj = parsedData
-            } else { // 전체 코인 데이터
-               coinsObj = parsedData
-            }
-
-            // onmessage 실행될때마다 테이블 업데이트
-            push_coin_price()
-
-            if (btckrwChart === false) {
-               btckrwChart = draw_highchart(klineObj['kline_btckrw'])
-            } else {
-               btckrwChart.series[0].setData(klineObj['kline_btckrw'])
-            }
-
-         }
-      }
-
-      function push_coin_price() {
-         const coinSymbols = Object.keys(coinsObj)
-
-         for (var n = 0; n < coinSymbols.length; n++) {
-            try {
-               const coinSymbol = coinSymbols[n]
-               if (baseCurrency in coinsObj[coinSymbol] === false) {
-                  continue;
-               }
-
-               // krw 가격 이외의 코인들
-               const coinOpenPrice = coinsObj[coinSymbol][baseCurrency]['open']
-               const coinHighPrice = coinsObj[coinSymbol][baseCurrency]['high']
-               const coinLowPrice = coinsObj[coinSymbol][baseCurrency]['low']
-               const coinClosePrice = coinsObj[coinSymbol][baseCurrency]['close']
-               const coinAmount = coinsObj[coinSymbol][baseCurrency]['amount']
-               const coinCount = coinsObj[coinSymbol][baseCurrency]['count']
-               var dailyChangeRate = ((coinClosePrice - coinOpenPrice) / coinOpenPrice * 100).toFixed(2)
-
-               var coinVolume = coinsObj[coinSymbol][baseCurrency]['vol']
-
-               if (baseCurrency === 'krw' || baseCurrency === 'usdt') {
-                  coinVolume = coinsObj[coinSymbol][baseCurrency]['vol_million']
-               }
-
-               // 0 으로 나눠졌을 때 변동률 0으로 설정
-               if (isFinite(dailyChangeRate) === false) {
-                  dailyChangeRate = 0
-               }
-
-               // krw 이 있을 때 true 없을 때 false
-               var krwExist = true
-               if ('krw' in coinsObj[coinSymbol] === true) {
-                  // krw 가격
-                  var krwCoinOpenPrice = coinsObj[coinSymbol]['krw']['open']
-                  var krwCoinHighPrice = coinsObj[coinSymbol]['krw']['high']
-                  var krwCoinLowPrice = coinsObj[coinSymbol]['krw']['low']
-                  var krwCoinClosePrice = coinsObj[coinSymbol]['krw']['close']
-                  var krwCoinAmount = coinsObj[coinSymbol]['krw']['amount']
-                  var krwCoinCount = coinsObj[coinSymbol]['krw']['count']
-                  var krwCoinVolume = coinsObj[coinSymbol]['krw']['vol_million']
-               } else {
-                  krwExist = false
-               }
-
-               var coin_table_html = `
-                  <tr id="${coinSymbol}">
-                     <th>
-                        <span class='coin-name'>${coinSymbol}</span>
-                        <span class='coin-sub-name'>${coinSymbol}</span>
-                     </th>
-                     <th>
-                        <span class='price'>${coinClosePrice}</span>
-                        <span class="price-unit">${baseCurrency.toUpperCase()}</span>
-                     </th>
-                     <th class='compared-wrap up'>
-                        <span class='compared'>${dailyChangeRate}</span>
-                        <span class='arrow'>
-                           <i></i>
-                        </span>
-                     </th>
-                     <th>
-                        <span class='today-high'>${coinHighPrice}</span>
-                        <span class="price-unit">${baseCurrency.toUpperCase()}</span>
-                     </th>
-                     <th>
-                        <span class='today-low'>${coinLowPrice}</span>
-                        <span class="price-unit">${baseCurrency.toUpperCase()}</span>
-                     </th>
-                     <th>
-                        <span class='transaction-price'>${coinVolume}</span>
-                        <span class="price-unit">백만</span>
-                     </th>
-                     <th class='trade-btn'>거래</th>
-                  </tr>
-               `
-
-               // coin_row 는 최초에 그려진 테이블의 element, id 는 coinSymbol
-               // 해당 element 가 없으면 테이블이 그려진 적이 없는 것 -> 최초로 그려주어야함
-               let coin_row = $('#' + coinSymbol)
-               const Million = '<span data-v-162bd38f="" class="text-subtitle"> 백만 </span>'
-               const currencyUnit = `<span data-v-162bd38f="" class="text-subtitle"> ${baseCurrency.toUpperCase()} </span>`
-
-               // 그려진 테이블이 없으면 새로 추가하고, 있으면 해당 element 값을 empty 한 뒤 원래 있던 element 에 append 해준다.
-               // krw 의 경우 밑에 krw 를 추가하면 안되고, 나머지의 경우는 밑에 krw 를 추가해줘야한다.
-
-               if (baseCurrency !== 'krw' && krwExist === true) { // krw 이외 단위들 && (krw 데이터가 있을 때) -> 최초에 그려진적 있는지/ 안그려졌는지
-                  if (!(coin_row.length)) {
-                     $('#coin_table_body').append(coin_table_html)
-                  }
-
-                  $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit + krw_html(krwCoinClosePrice))
-                  $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit + krw_html(krwCoinHighPrice))
-                  $('#' + coinSymbol + '_low_price').html(coinLowPrice + currencyUnit + krw_html(krwCoinLowPrice))
-                  $('#' + coinSymbol + '_volume').html(coinVolume + Million + krw_html(krwCoinVolume, '백만'))
-                  $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
-               } else { // 단위가 krw 일때 -> 최초에 그려진적있는지/ 최초에 안그려졌는지
-                  if (!(coin_row.length)) {
-                     $('#coin_table_body').append(coin_table_html)
-                  }
-                  $('#' + coinSymbol + '_close_price').html(coinClosePrice + currencyUnit)
-                  $('#' + coinSymbol + '_high_price').html(coinHighPrice + currencyUnit)
-                  $('#' + coinSymbol + '_low_price').html(coinLowPrice + currencyUnit)
-                  $('#' + coinSymbol + '_volume').html(coinVolume + Million)
-                  $('#' + coinSymbol + '_change_rate').html(dailyChangeRate + '%')
-               }
-
-            } catch (err) {
-               console.log(err.message)
-            }
-         }
-         // dynamic table sorting coin_table id 로 table 을 찾은 뒤 tablesorter() 설정
-         $("#coin_table").tablesorter()
-         $("#coin_table").trigger("update").trigger("appendCache")
-      }
-
-      // 탭이 변경될 때 마다 테이블 새로 그려주기 위해 push_coin_price() 실행
-      function change_basecurrency_on_tap_event(currency) {
-         $('#coin_table_body').empty()
-         baseCurrency = currency
-         push_coin_price()
-      }
-
-      // krw 단위로 표시, krw 탭 외에 btc, ht, eth 는 각각의 가격 밑에 krw 단위가 따로 있음
-      function krw_html(price, currency = 'KRW') {
-         return `<p data-v-162bd38f="" class="conversion fz12">
-                  <span data-v-162bd38f="" class="text-holder lh18">
-                  ${price}
-                  </span>
-                  <s data-v-162bd38f="" class="text-holder lh18">
-                  ${currency}
-                  </s>
-                  </p>
-                  `
-      }
-
-      function draw_highchart(data) {
-         var chartOptions = {
-            chart: {
-               zoomType: 'x',
-               renderTo: $('#btckrw_container'),
-               backgroundColor: 'transparent'
-            },
-            title: {
-               text: ''
-            },
-            legend: {
-               enabled: false
-            },
-            credits: {
-               enabled: false
-            },
-            exporting: false,
-            xAxis: {
-               labels: {
-                  enabled: false
-               },
-               title: false,
-               visible: false
-            },
-            yAxis: {
-               labels: {
-                  enabled: false
-               },
-               title: false,
-               visible: false
-            },
-            plotOptions: {
-               area: {
-                  fillColor: {
-                     linearGradient: {
-                        x1: 0,
-                        y1: 0,
-                        x2: 0,
-                        y2: 1,
-                     },
-                     stops: [
-                        [0, '#f9f9f9'],
-                     ]
-                  },
-                  marker: {
-                     radius: 2
-                  },
-                  lineWidth: 1,
-                  states: {
-                     hover: {
-                        lineWidth: 1
-                     }
-                  },
-                  threshold: null
-               }
-            },
-            series: [{
-               type: 'area',
-               data: data
-            }]
-         }
-
-         btckrw_chart = Highcharts.chart('btckrw_container', chartOptions)
-         return btckrw_chart
-      }
-
-      push_coin_price_on_message()
-
-   </script>
+    <meta charset="utf-8">
+    <title>1,279 USDT/KRW | Huobi 후오비</title>
+    <link href="/static/css/app.css" rel="stylesheet">
 </head>
 
 <body>
-   <div class='wrap'>
-      <div class="content">
-         <div class="graph">
-            <div class="coin-line" id='btckrw_container'>
-               <div class="title">
-                  <span class="coin-name">
-                     비트코인
-                  </span>
-                  <span class='coin-sub-name'>
-                     <span class="coin-code">BTC</span>
-                     <span class='name-unit'> | KRW </span>
-                  </span>
-               </div>
-               <div class="price">
-                  <span class='price-num'>123,123,123,123</span>
-                  <span class='price-unit'>KRW</span>
-               </div>
-               <div class="rate no-rise">
-                  -0.62 %
-               </div>
-               <div class="amount">
-                  거래대금 : 4,031 백만
-               </div>
+    <div id="app">
+        <div data-v-53311d6e="">
+            <div data-v-53311d6e="" class="el-dialog__wrapper hb-dialog" style="display: none;">
+                <div class="el-dialog" style="width: 440px; margin-top: 15vh;">
+                    <div class="el-dialog__header"><span class="el-dialog__title">레벨인증 관련 안내</span><button type="button" aria-label="Close" class="el-dialog__headerbtn"><i
+                                class="el-dialog__close el-icon el-icon-close"></i></button></div>
+                    <!---->
+                    <div class="el-dialog__footer">
+                        <div data-v-53311d6e=""><button data-v-53311d6e="" type="button" class="el-button button-primary el-button--primary">
+                                <!---->
+                                <!----><span>
+                                    확인
+                                </span>
+                            </button></div>
+                    </div>
+                </div>
             </div>
-            <div class="coin-line">
-               <div class="title">
-                  <span class="coin-name">
-                     이더리움
-                  </span>
-                  <span class='coin-sub-name'>
-                     <span class="coin-code">ETH</span>
-                     <span class='name-unit'> | KRW </span>
-                  </span>
-               </div>
-               <div class="price down">
-                  <span class='price-num'>123,123,123,123</span>
-                  <span class='price-unit'>KRW</span>
-               </div>
-               <div class="rate down">
-                  -0.62 %
-               </div>
-               <div class="amount">
-                  거래대금 : 4,031 백만
-               </div>
+        </div>
+        <div data-v-8c89ebd8="" class="l-body">
+            <div data-v-5760f09f="" data-v-8c89ebd8="" class="l-head page-main-width flex-center-center main-bg">
+                <div data-v-5760f09f="" class="pane page-main-width">
+                    <div data-v-5760f09f="" class="m-logo">
+                        <a data-v-5760f09f="" href="/ko-kr" class="seo-tag"><img data-v-5760f09f="" src="/static/img/logo.c0757ae.svg"></a>
+                    </div>
+                    <div data-v-63bc1a9a="" data-v-5760f09f="" class="m-menu text-main flex-center-center">
+                        <ul data-v-63bc1a9a="" class="l-nav text-main">
+                            <li data-v-63bc1a9a=""><a data-v-63bc1a9a="" href="/exchange/" class="" id="v-step-exchange"><span data-v-63bc1a9a="">거래소</span></a></li>
+                            <li data-v-63bc1a9a="">
+                                <dl data-v-1c1eb9dd="" data-v-63bc1a9a="" class="select-help">
+                                    <dt data-v-1c1eb9dd="">
+                                        고객센터
+                                    </dt>
+                                    <dd data-v-1c1eb9dd="">
+                                        <div data-v-1c1eb9dd="" class="header-drop-box">
+                                            <p data-v-1c1eb9dd="">고객센터</p>
+                                            <p data-v-1c1eb9dd="" class="tel">1661-1046</p> <a data-v-1c1eb9dd="" href="https://support.huobi.co.kr/hc/ko/categories/360000208432-%EA%B3%B5%EC%A7%80%EC%82%AC%ED%95%AD" target="_blank" rel="noopener noreferrer"><span
+                                                    data-v-1c1eb9dd="">공지사항</span></a>
+                                            <a data-v-1c1eb9dd="" href="https://support.huobi.co.kr/hc/ko/categories/360000208412" target="_blank" rel="noopener noreferrer"><span data-v-1c1eb9dd="">이용
+                                                    안내</span></a>
+                                            <a data-v-1c1eb9dd="" href="https://support.huobi.co.kr/hc/ko/articles/360002213031-%EC%88%98%EC%88%98%EB%A3%8C-%EC%95%88%EB%82%B4" target="_blank" rel="noopener noreferrer"><span data-v-1c1eb9dd="">수수료
+                                                    안내</span></a><a data-v-1c1eb9dd="" href="/ko-kr/introduction/" class=""><span data-v-1c1eb9dd="">코인 소개</span></a><a data-v-1c1eb9dd=""><span data-v-1c1eb9dd="">거래 가이드</span></a>
+                                            <a data-v-1c1eb9dd="" href="https://alphaex-api.github.io/openapi/spot/v1/kr/#1" target="_blank" rel="noopener noreferrer"><span data-v-1c1eb9dd="">API
+                                                    문서</span></a><a data-v-1c1eb9dd="" href="/ko-kr/prove/" class=""><span data-v-1c1eb9dd="">증빙 센터</span></a>
+                                            <a data-v-1c1eb9dd="" href="/ko-kr/premier/" class=""><span data-v-1c1eb9dd="">프리미어
+                                                    파트너</span></a>
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </li>
+                        </ul>
+                    </div>
+                    <div data-v-01af5d00="" data-v-5760f09f="" class="m-member flex-center-center">
+                        <ul data-v-01af5d00="" class="l-nav flex-center-center">
+                            <li data-v-01af5d00="" class="" sa-data="{&quot;type&quot;:&quot;ClickRegisterAndLogin&quot;,&quot;current_page&quot;:1,&quot;business_type&quot;:1}">
+                                로그인
+                            </li>
+                            <li data-v-01af5d00="" class="l-nav-register button-nav" sa-data="{&quot;type&quot;:&quot;ClickRegisterAndLogin&quot;,&quot;current_page&quot;:1,&quot;business_type&quot;:2}">
+                                회원가입
+                            </li>
+                            <li data-v-01af5d00="" class="border-r" style="display: none;"><i data-v-01af5d00="" class="hb-icon-user-assets"></i> 자산
+                            </li>
+                            <li data-v-01af5d00="" class="border-r" style="display: none;"><i data-v-01af5d00="" class="hb-icon-user-order"></i> 거래 내역
+                            </li>
+                            <li data-v-01af5d00="" class="border-r" style="display: none;">
+                                <dl data-v-01af5d00="" class="header-drop-list my-page">
+                                    <dt data-v-01af5d00=""><span data-v-01af5d00="" id="user_name"><i data-v-01af5d00=""
+                                                class="icon-wode"></i></span></dt>
+                                    <dd data-v-01af5d00="" class="text-main">
+                                        <div data-v-01af5d00="" class="header-drop-page-box">
+                                            <div data-v-01af5d00="" class="flex-start-center">
+                                                <!---->
+                                                <div data-v-01af5d00="" class="user-info">
+                                                    <div data-v-01af5d00="" class="name"></div>
+                                                    <div data-v-01af5d00="" class="uid text-placeholder">
+                                                        UID:
+                                                    </div>
+                                                    <p data-v-01af5d00="" class="join-premier"><span data-v-01af5d00="">프리미어 파트너 가입 &gt;&gt;</span></p>
+                                                    <!---->
+                                                </div>
+                                                <!---->
+                                            </div>
+                                            <div data-v-01af5d00="" class="pd20 header-list"><a data-v-01af5d00="" href="/ko-kr/ucinfo/" class=""><span data-v-01af5d00="">마이
+                                                        페이지</span></a> <a data-v-01af5d00=""><span
+                                                        data-v-01af5d00="">API 관리</span></a> <a data-v-01af5d00="" href="/ko-kr/maid/maidInfo/" class=""><span data-v-01af5d00="">나의
+                                                        초대코드</span></a> <a data-v-01af5d00="" href="/ko-kr/sub-account/" class=""><span data-v-01af5d00="">서브 계정</span></a> <a data-v-01af5d00="" class="btn_logout"><span
+                                                        data-v-01af5d00="">로그아웃</span></a></div>
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </li>
+                            <li data-v-01af5d00="">
+                                <dl data-v-01af5d00="" class="select-lang">
+                                    <dt data-v-01af5d00=""><img data-v-01af5d00=""
+                                            src="/static/img/lang-ko-kr.061174d.svg"> <span data-v-01af5d00=""
+                                            class="current-lang">한국어</span></dt>
+                                    <dd data-v-01af5d00="" class="text-main">
+                                        <div data-v-01af5d00="" class="box-shadow border-radius-3 main-bg select-lang-box">
+                                            <div data-v-01af5d00=""><img data-v-01af5d00="" src="/static/img/lang-ko-kr.061174d.svg"> <span data-v-01af5d00="">한국어</span></div>
+                                            <div data-v-01af5d00=""><img data-v-01af5d00="" src="/static/img/lang-zh-cn.4ac3342.svg"> <span data-v-01af5d00="">简体中文</span></div>
+                                            <div data-v-01af5d00=""><img data-v-01af5d00="" src="/static/img/lang-en-us.951fd94.svg"> <span data-v-01af5d00="">English</span></div>
+                                        </div>
+                                    </dd>
+                                </dl>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
-            <div class="coin-line">
-               <div class="title">
-                  <span class="coin-name">
-                     테더
-                  </span>
-                  <span class='coin-sub-name'>
-                     <span class="coin-code">USDT</span>
-                     <span class='name-unit'> | KRW </span>
-                  </span>
-               </div>
-               <div class="price up">
-                  <span class='price-num'>123,123,123,123</span>
-                  <span class='price-unit'>KRW</span>
-               </div>
-               <div class="rate up">
-                  -0.62 %
-               </div>
-               <div class="amount">
-                  거래대금 : 4,031 백만
-               </div>
+            <div data-v-8c89ebd8="" class="l-main">
+                <div data-v-3f3bf58c="" data-v-8c89ebd8="" class="exchange-wrapper">
+                    <div data-v-3f3bf58c="" class="exchange-main">
+                        <div data-v-dfd72d38="" data-v-3f3bf58c="" class="topbar fz12 border-table main-bg border-radius-3">
+                            <div data-v-dfd72d38="" class="topbar-icon"><span data-v-dfd72d38="" class="text-white border-radius-3"><i data-v-dfd72d38=""
+                                        class="hb-icon-user-notice"></i></span></div>
+                            <div data-v-dfd72d38="" class="inner">
+                                <div data-v-dfd72d38="" class="inner-item">
+                                    <div data-v-dfd72d38=""><a data-v-dfd72d38="" href="https://support.huobi.co.kr/hc/ko/articles/360061114352" target="_blank" rel="nofollow noopener noreferrer"><span
+                                                data-v-dfd72d38="">[이벤트] 페이코인(PCI) 이벤트 결과 안내</span> <span
+                                                data-v-dfd72d38="">(2021-05-20)</span></a></div>
+                                    <div data-v-dfd72d38=""><a data-v-dfd72d38="" href="https://support.huobi.co.kr/hc/ko/articles/360061393771" target="_blank" rel="nofollow noopener noreferrer"><span
+                                                data-v-dfd72d38="">[안내] 원화(KRW)입금 계좌 변경 안내</span> <span
+                                                data-v-dfd72d38="">(2021-05-18)</span></a></div>
+                                    <div data-v-dfd72d38=""><a data-v-dfd72d38="" href="https://support.huobi.co.kr/hc/ko/articles/360060885032" target="_blank" rel="nofollow noopener noreferrer"><span
+                                                data-v-dfd72d38="">[안내] 원화(KRW) 출금 수수료 정책 변경 안내</span> <span
+                                                data-v-dfd72d38="">(2021-05-14)</span></a></div>
+                                </div>
+                                <div data-v-dfd72d38="" class="inner-item">
+                                    <div data-v-dfd72d38=""><a data-v-dfd72d38="" href="https://support.huobi.co.kr/hc/ko/articles/360061176872" target="_blank" rel="nofollow noopener noreferrer"><span
+                                                data-v-dfd72d38="">[이벤트] 후오비코리아 피자데이 3행시 이벤트</span> <span
+                                                data-v-dfd72d38="">(2021-05-21)</span></a></div>
+                                    <div data-v-dfd72d38=""><a data-v-dfd72d38="" href="https://support.huobi.co.kr/hc/ko/articles/360061527091" target="_blank" rel="nofollow noopener noreferrer"><span
+                                                data-v-dfd72d38="">[안내] APENFT(NFT) 거래개시시간 변경 안내(수정)</span> <span
+                                                data-v-dfd72d38="">(2021-05-20)</span></a></div>
+                                    <div data-v-dfd72d38=""><a data-v-dfd72d38="" href="https://support.huobi.co.kr/hc/ko/articles/360061522491" target="_blank" rel="nofollow noopener noreferrer"><span
+                                                data-v-dfd72d38="">[상장] APENFT(NFT) 신규상장 안내</span> <span
+                                                data-v-dfd72d38="">(2021-05-20)</span></a></div>
+                                </div>
+                            </div>
+                            <div data-v-dfd72d38="" class="topbar-close"><i data-v-dfd72d38="" class="el-icon-close fz18 text-subtitle"></i></div>
+                        </div>
+                        <div data-v-3f3bf58c="" class="l-box" style="position: sticky; top: 10px;">
+                            <div data-v-3f3bf58c="" class="market-box">
+                                <div data-v-621cd54c="" data-v-3f3bf58c="" class="marker-main main-bg border-table" style="height: 743px;">
+                                    <div data-v-1737ec65="" data-v-621cd54c="" class="el-card custom-card market-card is-never-shadow">
+                                        <div class="el-card__header">
+                                            <div data-v-1737ec65="" class="custom-card-header clear-fix">
+                                                <!---->
+                                                <div data-v-1737ec65="" class="card-header-slot">
+                                                    <div data-v-621cd54c="" class="market-title clear-fix">
+                                                        <div data-v-621cd54c="" class="market-radio fl">
+                                                            <ul data-v-621cd54c="" class="text-subtitle noselect ht-radio-group ">
+                                                                <li><input type="radio" name="radio" id="radio_favor" value="favor"> <label for="radio_favor"><i
+                                                                            class="icon-favor-on text-favor"></i>
+                                                                        관심코인
+                                                                    </label></li>
+                                                                <li><input type="radio" name="radio" id="radio_krw" value="krw"> <label for="radio_krw">
+                                                                        <!---->
+                                                                        KRW
+                                                                    </label></li>
+                                                                <li><input type="radio" name="radio" id="radio_usdt" value="usdt"> <label for="radio_usdt">
+                                                                        <!---->
+                                                                        USDT
+                                                                    </label></li>
+                                                                <li><input type="radio" name="radio" id="radio_btc" value="btc"> <label for="radio_btc">
+                                                                        <!---->
+                                                                        BTC
+                                                                    </label></li>
+                                                                <li><input type="radio" name="radio" id="radio_eth" value="eth"> <label for="radio_eth">
+                                                                        <!---->
+                                                                        ETH
+                                                                    </label></li>
+                                                                <li><input type="radio" name="radio" id="radio_ht" value="ht"> <label for="radio_ht">
+                                                                        <!---->
+                                                                        HT
+                                                                    </label></li>
+                                                                <li><input type="radio" name="radio" id="radio_balance" value="balance"> <label for="radio_balance">
+                                                                        <!---->
+                                                                        보유 자산
+                                                                    </label></li>
+                                                            </ul>
+                                                        </div>
+                                                        <div data-v-621cd54c="" id="v-step-market"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="el-card__body">
+                                            <div data-v-1737ec65="" class="card-body">
+                                                <div data-v-621cd54c="" class="market-data exchange-pannel">
+                                                    <div data-v-621cd54c="" class="search-input-box clear-fix border-table-bottom input-default">
+                                                        <div data-v-621cd54c="" class="search-input el-input el-input--mini el-input--suffix fl">
+                                                            <input data-v-621cd54c="" type="text" autocomplete="off" growing-ignore="true" class="el-input__inner text-uppercase"> <span data-v-621cd54c="" class="el-input__suffix"><span
+                                                                    data-v-621cd54c="" class="el-input__suffix-inner"><i
+                                                                        data-v-621cd54c=""
+                                                                        class="el-input__icon hb-icon-user-search"></i></span></span>
+                                                        </div>
+                                                        <div data-v-621cd54c="" class="amount-vol fr noselect text-main flex-start-center">
+                                                            <i data-v-621cd54c="" class="hb-icon-user-change"></i> <span data-v-621cd54c="" class="">
+                                                                거래량
+                                                            </span></div>
+                                                    </div>
+                                                    <div data-v-1df60166="" data-v-621cd54c="" class="table-main">
+                                                        <!---->
+                                                        <!---->
+                                                        <div data-v-1df60166="" class="el-table hb-el-table market-table-box el-table--fit el-table--enable-row-hover el-table--enable-row-transition el-table--mini" style="height: 647px;">
+                                                            <div class="hidden-columns">
+                                                                <div data-v-1df60166=""></div>
+                                                                <div data-v-1df60166=""></div>
+                                                                <div data-v-1df60166=""></div>
+                                                                <div data-v-1df60166=""></div>
+                                                                <!---->
+                                                                <div data-v-1df60166=""></div>
+                                                            </div>
+                                                            <div class="el-table__header-wrapper">
+                                                                <table cellspacing="0" cellpadding="0" border="0" class="el-table__header" style="width: 415px;">
+                                                                    <colgroup>
+                                                                        <col name="el-table_3_column_19" width="22">
+                                                                        <col name="el-table_3_column_20" width="120">
+                                                                        <col name="el-table_3_column_21" width="103">
+                                                                        <col name="el-table_3_column_22" width="70">
+                                                                        <col name="el-table_3_column_23" width="100">
+                                                                        <col name="gutter" width="0">
+                                                                    </colgroup>
+                                                                    <thead class="has-gutter">
+                                                                        <tr class="">
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_19  is-center   is-leaf">
+                                                                                <div class="cell"></div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_20     is-leaf">
+                                                                                <div class="cell">코인명</div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_21  is-right   is-leaf is-sortable">
+                                                                                <div class="cell">현재가<span class="caret-wrapper"><i
+                                                                                            class="sort-caret ascending"></i><i
+                                                                                            class="sort-caret descending"></i></span>
+                                                                                </div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_22  is-right   is-leaf is-sortable">
+                                                                                <div class="cell">전일대비<span class="caret-wrapper"><i
+                                                                                            class="sort-caret ascending"></i><i
+                                                                                            class="sort-caret descending"></i></span>
+                                                                                </div>
+                                                                            </th>
+                                                                            <th colspan="1" rowspan="1" class="el-table_3_column_23  is-right   is-leaf is-sortable">
+                                                                                <div class="cell">거래대금(24H)<span class="caret-wrapper"><i
+                                                                                            class="sort-caret ascending"></i><i
+                                                                                            class="sort-caret descending"></i></span>
+                                                                                </div>
+                                                                            </th>
+                                                                            <th class="gutter" style="width: 0px; display: none;"></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                </table>
+                                                            </div>
+                                                            <div class="el-table__body-wrapper is-scrolling-none" style="height: 623px;">
+                                                                <table cellspacing="0" cellpadding="0" border="0" class="el-table__body" style="width: 415px;">
+                                                                    <colgroup>
+                                                                        <col name="el-table_3_column_19" width="22">
+                                                                        <col name="el-table_3_column_20" width="120">
+                                                                        <col name="el-table_3_column_21" width="103">
+                                                                        <col name="el-table_3_column_22" width="70">
+                                                                        <col name="el-table_3_column_23" width="100">
+                                                                    </colgroup>
+                                                                    <tbody>
+                                                                        <tr class="el-table__row " style="height: 48px; cursor: pointer;">
+                                                                            <td class="el-table_3_column_19 is-center ">
+                                                                                <div class="cell">
+                                                                                    <p data-v-1df60166="" class="market-tabal-icon"><i data-v-1df60166="" class="icon-favor icon-favor-on text-favor"></i>
+                                                                                    </p>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_20  ">
+                                                                                <div class="cell"><span data-v-1df60166="" id="btckrw" class="cb market-coin-name"><b
+                                                                                            data-v-1df60166=""
+                                                                                            class="icon-name text-main font-bold">
+                                                                                            비트코인
+                                                                                        </b> <span data-v-1df60166=""
+                                                                                            class="market-symbol text-tips flex-start-center"><span
+                                                                                                data-v-1df60166="">BTC</span>
+                                                                                    <!----><span data-v-1df60166="" class="text-tips">
+                                                                                                / KRW
+                                                                                            </span>
+                                                                                    <!---->
+                                                                                    </span>
+                                                                                    </span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_21 is-right ">
+                                                                                <div class="cell">
+                                                                                    <div data-v-1df60166="" class="market-table">
+                                                                                        <p data-v-1df60166="" class="fz12 rate-down">
+                                                                                            46,724,000
+                                                                                        </p>
+                                                                                        <!---->
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_22 is-right ">
+                                                                                <div class="cell">
+                                                                                    <p data-v-1df60166="" class="fz12 rate-down"><span data-v-1df60166="">
+                                                                                            -0.24%
+                                                                                        </span></p>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_23 is-right ">
+                                                                                <div class="cell">
+                                                                                    <div data-v-1df60166="" class="market-table right-last">
+                                                                                        <p data-v-1df60166="" class="text-main">
+                                                                                            9,500 백만
+                                                                                        </p>
+                                                                                        <!---->
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="el-table__row  current-row" style="height: 48px; cursor: pointer;">
+                                                                            <td class="el-table_3_column_19 is-center ">
+                                                                                <div class="cell">
+                                                                                    <p data-v-1df60166="" class="market-tabal-icon"><i data-v-1df60166="" class="icon-favor icon-favor-on text-favor"></i>
+                                                                                    </p>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_20  ">
+                                                                                <div class="cell"><span data-v-1df60166="" id="usdtkrw" class="cb market-coin-name"><b
+                                                                                            data-v-1df60166=""
+                                                                                            class="icon-name text-main font-bold">
+                                                                                            테더
+                                                                                        </b> <span data-v-1df60166=""
+                                                                                            class="market-symbol text-tips flex-start-center"><span
+                                                                                                data-v-1df60166="">USDT</span>
+                                                                                    <!----><span data-v-1df60166="" class="text-tips">
+                                                                                                / KRW
+                                                                                            </span>
+                                                                                    <!---->
+                                                                                    </span>
+                                                                                    </span>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_21 is-right ">
+                                                                                <div class="cell">
+                                                                                    <div data-v-1df60166="" class="market-table">
+                                                                                        <p data-v-1df60166="" class="fz12 rate-up">
+                                                                                            1,279
+                                                                                        </p>
+                                                                                        <!---->
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_22 is-right ">
+                                                                                <div class="cell">
+                                                                                    <p data-v-1df60166="" class="fz12 rate-up"><span data-v-1df60166="">
+                                                                                            +0.24%
+                                                                                        </span></p>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="el-table_3_column_23 is-right ">
+                                                                                <div class="cell">
+                                                                                    <div data-v-1df60166="" class="market-table right-last">
+                                                                                        <p data-v-1df60166="" class="text-main">
+                                                                                            59,914 백만
+                                                                                        </p>
+                                                                                        <!---->
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <!---->
+                                                                    </tbody>
+                                                                </table>
+                                                                <!---->
+                                                                <!---->
+                                                            </div>
+                                                            <!---->
+                                                            <!---->
+                                                            <!---->
+                                                            <!---->
+                                                            <div class="el-table__column-resize-proxy" style="display: none;"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!---->
+                        </div>
+                        <!---->
+                    </div>
+                    <div data-v-3f3bf58c="" class="v-tour tour-modal" name="myTour">
+                        <!---->
+                    </div>
+                </div>
             </div>
-            <div class="coin-line">
-               <div class="title">
-                  <span class="coin-name">
-                     후오비토큰
-                  </span>
-                  <span class='coin-sub-name'>
-                     <span class="coin-code">HT</span>
-                     <span class='name-unit'> | KRW </span>
-                  </span>
-               </div>
-               <div class="price">
-                  <span class='price-num'>123,123,123,123</span>
-                  <span class='price-unit'>KRW</span>
-               </div>
-               <div class="rate no-rise">
-                  -0.62 %
-               </div>
-               <div class="amount">
-                  거래대금 : 4,031 백만
-               </div>
-            </div>
-         </div>
-         <div class="table-wrap">
-            <div class="table-nav">
-               <ul>
-                  <li>
-                     <input type="radio" name="radio" id="radio_favor" value="favor">
-                     <label for="radio_favor">
-                        <i class="icon-favor-off"></i>
-                        관심코인
-                     </label>
-                  </li>
-                  <li>
-                     <input type="radio" name="radio" id="radio_krw" value="krw" onclick='change_basecurrency_on_tap_event(this.value)'>
-                     <label for="radio_krw">
-                        KRW
-                     </label>
-                  </li>
-                  <li>
-                     <input type="radio" name="radio" id="radio_usdt" value="usdt" onclick='change_basecurrency_on_tap_event(this.value)'>
-                     <label for="radio_usdt">
-                        USDT
-                     </label>
-                  </li>
-                  <li>
-                     <input type="radio" name="radio" id="radio_btc" value="btc" onclick='change_basecurrency_on_tap_event(this.value)'>
-                     <label for="radio_btc">
-                        BTC
-                     </label>
-                  </li>
-                  <li>
-                     <input type="radio" name="radio" id="radio_ht" value="ht" onclick='change_basecurrency_on_tap_event(this.value)'>
-                     <label for="radio_ht">
-                        HT
-                     </label>
-                  </li>
-               </ul>
-               <div class="search-input">
-                  <input type="text" autocomplete="off" growing-ignore="true" class="search-input-inner">
-                  <span class="">
-                     <i class=""></i>
-                  </span>
-               </div>
-            </div>
-
-            <div class="table-header">
-               <table id='coin_table'>
-                  <colgroup>
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                     <col style="width: 10%;">
-                  </colgroup>
-                  <thead class='sort-nav'>
-                     <tr>
-                        <th>코인명</th>
-                        <th>
-                           가격
-                           <span class='arrow'>
-                              <i></i>
-                              <i></i>
-                           </span>
-                        </th>
-                        <th>
-                           전일대비
-                           <span class='arrow'>
-                              <i></i>
-                              <i></i>
-                           </span>
-                        </th>
-                        <th>
-                           당일고가
-                           <span class='arrow'>
-                              <i></i>
-                              <i></i>
-                           </span>
-                        </th>
-                        <th>
-                           당일저가
-                           <span class='arrow'>
-                              <i></i>
-                              <i></i>
-                           </span>
-                        </th>
-                        <th>
-                           거래대금
-                           <span class='arrow'>
-                              <i></i>
-                              <i></i>
-                           </span>
-                        </th>
-                        <th>빠른거래</th>
-                     </tr>
-                  </thead>
-                  <div class="table-body">
-                     <tbody id='coin_table_body'>
-                     </tbody>
-                  </div>
-               </table>
-            </div>
-
-         </div>
-      </div>
-   </div>
-
+        </div>
+    </div>
 </body>
 
 </html>
