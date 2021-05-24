@@ -36323,7 +36323,7 @@ html {
 
 .el-table td,
 .el-table th {
-    padding: 12px 0;
+    /* padding: 12px 0; */
     min-width: 0;
     box-sizing: border-box;
     text-overflow: ellipsis;
@@ -36379,7 +36379,7 @@ html {
 
 .el-table--mini td,
 .el-table--mini th {
-    padding: 6px 0
+    /* padding: 6px 0 */
 }
 
 .el-table tr {
@@ -46556,7 +46556,7 @@ html {
 .hb-el-table.el-table td .cell,
 .hb-el-table.el-table th .cell {
     line-height: 1.3;
-    padding: 0 5px
+    /* padding: 0 5px */
 }
 
 .hb-el-table.el-table th {
