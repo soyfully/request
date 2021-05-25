@@ -18,6 +18,9 @@
 
     <link rel="stylesheet" href="../static/css/app.css" />
     <script>
+        const baseUrl = `localhost:8888`
+        const serverUrlPath = window.location.origin
+
         // 첫 화면 들어갔을 때 기본 마켓 krw 로 설정, 탭 누를때마다 onclick event 로 변경됨
         var coinMarketType = 'favor'
 
@@ -43,7 +46,7 @@
         // 탭이 바뀔 때 마다 baseCurrency 가 바뀜
 
         function push_coin_price_on_message() {
-            ws = new WebSocket("ws://localhost:8888/ws");
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
 
             ws.onmessage = function(evt) { // onmessage evt 는 두종류 -> 1. kline 차트데이터  2. 전체 코인데이터
                 const parsedData = JSON.parse(evt.data)
@@ -98,7 +101,6 @@
 
 
                 if (Array.isArray(favorList) && favorList.length === 0) { // 로컬스토리지에 관심코인 아무것도 없을때
-                    console.log(11111)
                     const emptyTableHtml = `
                                             <div class="el-table__empty-block" style="width: 1280px;">
                                                 <span class="el-table__empty-text">
@@ -213,7 +215,6 @@
 
         }
 
-
         function draw_coin_table(coinTableRowObj, isFavorCoin) {
             const coinMarketType = coinTableRowObj.coinMarketType
             const coinSymbol = coinTableRowObj.coinSymbol
@@ -258,7 +259,7 @@
 
             // initial table to be drawn when user opens web
             var coin_table_html = `
-                            <tr class="el-table__row " style="height: 60px; cursor: pointer;" id="${coinSymbol}">
+                            <tr class="el-table__row " style="height: 60px; cursor: pointer;" id="${coinSymbol}" data="${coinSymbol}-${coinMarketType}" onclick="redirect_to(this)">
                       <td class="el-table_1_column_1 is-center ">
                          <div class="cell">
                             <p data-v-162bd38f="" class="market-tabal-icon">
@@ -268,7 +269,7 @@
                       </td>
                       <td class="el-table_1_column_2  ">
                          <div class="cell">
-                            <span data-v-162bd38f="" id="solkrw" class="cb inline-block pr15">
+                            <span data-v-162bd38f="" class="cb inline-block pr15">
                                <b data-v-162bd38f="" class="icon-name text-main fz14">
                                  ${coinKoreanName}
                                </b> 
@@ -363,7 +364,6 @@
                 $('#' + coinSymbol + '_high_price').html(toFloat(coinMarketType, coinHighPrice) + currencyUnit + krw_html(toFloat('krw', krwCoinHighPrice)))
                 $('#' + coinSymbol + '_low_price').html(toFloat(coinMarketType, coinLowPrice) + currencyUnit + krw_html(toFloat('krw', krwCoinLowPrice)))
 
-
                 let krwCoinVolume = coinVolume * krwRate
                 krwCoinVolume = format_volume(krwCoinVolume, coinMarketType)
                 $('#' + coinSymbol + '_volume').html(formattedCoinVolume + krw_html(krwCoinVolume, ''))
@@ -405,6 +405,10 @@
         }
 
         function manage_favor_coin(favorCoin) {
+            // 이벤트 버블링 막아서 row 까지 클릭되는 것 방지
+            if (!e) var e = window.event
+            event.stopPropagation()
+
             let favorList = JSON.parse(localStorage.getItem('favorList'))
             let favorStarOnOff = 'off'
 
@@ -456,6 +460,14 @@
                     maximumFractionDigits = 1
                 } else {
                     maximumFractionDigits = 0
+                }
+            } else if (currency === 'usdt') {
+                if (number < 1) {
+                    maximumFractionDigits = 6
+                } else if (number < 1000) {
+                    maximumFractionDigits = 4
+                } else {
+                    maximumFractionDigits = 2
                 }
             }
 
@@ -525,7 +537,12 @@
             var chartOptions = {
                 chart: {
                     zoomType: 'x',
-                    backgroundColor: 'transparent'
+                    backgroundColor: 'transparent',
+                    events: {
+                        click: function(event) {
+                            // redirect
+                        }
+                    }
                 },
                 title: {
                     text: ''
@@ -615,6 +632,12 @@
             }
         }
 
+        // 리다이렉트 함수
+        function redirect_to(obj) {
+            const currency_with_market = obj.getAttribute('data')
+            window.location.href = `${serverUrlPath}/main/exchange/${currency_with_market}`
+        }
+
         // tablesorter parser for sorting without comma
         $(document).ready(function() {
             jQuery.tablesorter.addParser({
@@ -656,6 +679,23 @@
             }
         })
 
+        $(document).ready(function() {
+            $('#container-btckrw').addEventListener('click', e => {
+                console.log('heeee')
+                redirect_to('btc-krw')
+            })
+            $('#container-ethkrw').addEventListener('click', e => {
+                redirect_to('eth-krw')
+            })
+            $('#container-usdtkrw').addEventListener('click', e => {
+                redirect_to('usdt-krw')
+            })
+            $('#container-htkrw').addEventListener('click', e => {
+                redirect_to('ht-krw')
+            })
+        });
+
+
         // websocket on message 마다 가격정보 갱신해주는 함수 실행, 클라이언트 연결 끊길때 까지 계속실행
         push_coin_price_on_message()
     </script>
@@ -666,13 +706,13 @@
     <div id="app">
         <div class="l-body">
             <div data-v-159dacde class="l-main">
-                <section class="index-home-pane page-min-width">
+                <section data-v-6d40047e="" data-v-159dacde="" class="index-home-pane page-min-width">
 
                     <!--위에 차트박스 4개-->
                     <div data-v-6d40047e="" class="coin-box page-main-width clear-fix">
                         <div data-v-d5f9e54e="" data-v-6d40047e="" class="coin-line fl border-nav border-radius-2" id='btckrw-coin-box'>
                             <div data-v-d5f9e54e="" id="btc/krw" class="kline" data-highcharts-chart="721" style="overflow: hidden;">
-                                <div id="container-btckrw" dir="ltr" class="highcharts-container " style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);">
+                                <div id="container-btckrw" dir="ltr" class="highcharts-container " data="btc-krw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);">
                                 </div>
                             </div>
                             <div data-v-d5f9e54e="" class="content">
@@ -693,7 +733,7 @@
                         </div>
                         <div data-v-d5f9e54e="" data-v-6d40047e="" class="coin-line fl border-nav border-radius-2" id='ethkrw-coin-box'>
                             <div data-v-d5f9e54e="" id="eth/krw" class="kline" style="overflow: hidden;" data-highcharts-chart="724">
-                                <div id="container-ethkrw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);" dir="ltr" class="highcharts-container ">
+                                <div id="container-ethkrw" data="eth-krw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);" dir="ltr" class="highcharts-container ">
                                 </div>
                             </div>
                             <div data-v-d5f9e54e="" class="content">
@@ -715,7 +755,7 @@
                         </div>
                         <div data-v-d5f9e54e="" data-v-6d40047e="" class="coin-line fl border-nav border-radius-2" id='usdtkrw-coin-box'>
                             <div data-v-d5f9e54e="" id="usdt/krw" class="kline" style="overflow: hidden;" data-highcharts-chart="727">
-                                <div id="container-usdtkrw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);" dir="ltr" class="highcharts-container ">
+                                <div id="container-usdtkrw" data="usdt-krw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);" dir="ltr" class="highcharts-container ">
                                 </div>
                             </div>
                             <div data-v-d5f9e54e="" class="content">
@@ -737,7 +777,7 @@
                         </div>
                         <div data-v-d5f9e54e="" data-v-6d40047e="" class="coin-line fl border-nav border-radius-2" id='htkrw-coin-box'>
                             <div data-v-d5f9e54e="" id="ht/krw" class="kline" style="overflow: hidden;" data-highcharts-chart="726">
-                                <div id="container-htkrw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);" dir="ltr" class="highcharts-container ">
+                                <div id="container-htkrw" data="ht-krw" style="position: relative; overflow: hidden; width: 303px; height: 120px; text-align: left; line-height: normal; z-index: 0; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);" dir="ltr" class="highcharts-container ">
                                 </div>
                             </div>
                             <div data-v-d5f9e54e="" class="content">

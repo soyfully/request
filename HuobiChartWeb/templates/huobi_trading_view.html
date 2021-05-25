@@ -11,10 +11,14 @@
     <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
 
     <script>
+        const serverUrlPath = window.location.origin;
+
+
         // 첫 화면 들어갔을 때 기본 마켓 krw 로 설정, 탭 누를때마다 onclick event 로 변경됨
+        // currency_with_market 은 path parameter 로 tornado 서버 uri 로 넘겨받음
         var coinMarketType = 'krw'
         var displayAmountOrVolume = 'volume'
-        var tradingViewCurrency = 'eth-usdt'
+        var tradingViewCurrency = '{{currency_with_market}}'
 
         var coinsObj = Object()
 
@@ -44,7 +48,7 @@
         // 탭이 바뀔 때 마다 baseCurrency 가 바뀜
 
         function push_coin_price_on_message() {
-            ws = new WebSocket("ws://localhost:8888/ws");
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
 
             ws.onmessage = function(evt) { // onmessage evt 는 두종류 -> 1. kline 차트데이터  2. 전체 코인데이터
                 const parsedData = JSON.parse(evt.data)
@@ -225,7 +229,7 @@
 
             // initial table to be drawn when user opens web
             var coin_table_html = `
-                    <tr class="el-table__row " style="height: 48px; cursor: pointer;" id="${coinSymbol}">
+                    <tr class="el-table__row " style="height: 48px; cursor: pointer;" id="${coinSymbol}" data="${coinSymbol}-${coinMarketType}" onclick="redirect_to(this)">
                       <td class="el-table_3_column_19 is-center ">
                          <div class="cell">
                             <p data-v-162bd38f="" class="market-tabal-icon">
@@ -321,7 +325,7 @@
             }
         }
 
-        function push_trading_view_header_price() {
+        function push_trading_view_header_price() { // trading view 헤더에 업데이트되는 정보들
             const currencyMarket = tradingViewCurrency.split('-')
             const coinSymbol = currencyMarket[0]
             const coinMarketType = currencyMarket[1]
@@ -355,10 +359,12 @@
             $('#trading-view-recent-price').html(toFloat(coinMarketType, coinClosePrice))
             $('#trading-view-recent-price').attr('class', `recent-price font-bold ${rateUpDownColor}`)
 
-            // krw 마켓 이외에서만 krw 가격 표시
-            const krwCoinClosePrice = coinsObj[coinSymbol]['krw']['close']
-
             if (coinMarketType !== 'krw') {
+
+                // krw 마켓 이외에서만 krw 가격 표시
+                const krwRate = coinsObj[coinMarketType]['krw']['close']
+                const krwCoinClosePrice = coinClosePrice * krwRate
+
                 if ($('.equal-krw').length) {
                     $('#krw-price').html(toFloat(coinMarketType, krwCoinClosePrice))
                 } else {
@@ -380,10 +386,20 @@
             $('#trading-view-high-price').html(toFloat(coinMarketType, coinHighPrice))
             $('#trading-view-low-price').html(toFloat(coinMarketType, coinLowPrice))
 
-            $('#trading-view-amount').html(coinAmount)
-            $('#trading-view-volume').html(coinVolume)
+            // trading view 헤더에 들어가는 정보 -> amount(거래량) 는 coinSymbol 로 표기, volume(거래대금) 은 coinMarketType 으로 표기
+            // 최대 6자리까지 표기
+            $('#trading-view-amount').html(coinAmount.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 6,
+            }))
+            $('#trading-view-volume').html(coinVolume.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 6,
+            }))
 
-            console.log($('#currency-image'))
+            $('#trading-view-amount-currency').html(coinSymbol.toUpperCase())
+            $('#trading-view-volume-currency').html(coinMarketType.toUpperCase())
+
             $('#currency-image').attr('src', coinImage)
 
             // 코인한글명 심볼/마켓
@@ -399,6 +415,44 @@
                 <span data-v-68a1faa6="" class="quote-coin">
                     ${coinMarketType.toUpperCase()}
                 </span>`)
+
+            // 코인창에 마우스 hover 하면 해당코인이 있는 마켓에서의 가격 변동률 표시해야함 (.other-box)
+            $('#other-coin-market-box').empty() // 다른 마켓 변동률 이미 html 그려진 것 지우고 시작
+
+            const coinMarkets = Object.keys(coinsObj[coinSymbol])
+            for (var n = 0; n < coinMarkets.length; n++) {
+                const coinMarket = coinMarkets[n]
+                const coinOpenPrice = coinsObj[coinSymbol][coinMarket]['open']
+                const coinClosePrice = coinsObj[coinSymbol][coinMarket]['close']
+
+                const dailyChangeDiff = coinClosePrice - coinOpenPrice
+                let dailyChangeRate = (dailyChangeDiff / coinOpenPrice * 100).toFixed(2)
+                if (isFinite(dailyChangeRate) === false) {
+                    dailyChangeRate = 0
+                }
+
+                // 가격 변동률 색상
+                let rateUpDownColor = ''
+                let ratePlusMinus = ''
+
+                if (dailyChangeRate > 0) {
+                    rateUpDownColor = 'text-up'
+                    ratePlusMinus = '+'
+                } else if (dailyChangeRate < 0) {
+                    rateUpDownColor = 'text-down'
+                    ratePlusMinus = ''
+                }
+
+                // 등락률 클릭하면 해당 코인심볼-마켓 으로 이동
+                $('#other-coin-market-box').append(`<li data-v-68a1faa6="" class="clear-fix text-main" data="${coinSymbol}-${coinMarket}" onclick="redirect_to(this)">
+                                                    <span data-v-68a1faa6="" class="fl">
+                                                        ${coinSymbol.toUpperCase()}/${coinMarket.toUpperCase()}
+                                                    </span>
+                                                    <span data-v-68a1faa6="" class="fr ${rateUpDownColor}">
+                                                        ${ratePlusMinus}${dailyChangeRate}%
+                                                    </span>
+                                                    </li>`)
+            }
         }
 
         function change_market_type_on_tap_event(currency) {
@@ -444,6 +498,10 @@
         }
 
         function manage_favor_coin(favorCoin) {
+            // 이벤트 버블링 막아서 row 까지 클릭되는 것 방지
+            if (!e) var e = window.event
+            event.stopPropagation()
+
             let favorList = JSON.parse(localStorage.getItem('favorList'))
             let favorStarOnOff = 'off'
 
@@ -539,6 +597,13 @@
                 return `${number.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
             }
         }
+
+        // 리다이렉트 함수
+        function redirect_to(obj) {
+            const currency_with_market = obj.getAttribute('data')
+            window.location.href = `${serverUrlPath}/main/exchange/${currency_with_market}`
+        }
+
 
         // tablesorter parser for sorting without comma
         $(document).ready(function() {
@@ -720,10 +785,13 @@
                                                                                 </div>
                                                                             </th>
                                                                             <th colspan="1" rowspan="1" class="el-table_3_column_23 descending is-right   is-leaf is-sortable">
-                                                                                <div class="cell" id="amount-vol-col">거래대금(24H)
+                                                                                <div class="cell" id="amount-vol-col">
+                                                                                    거래대금(24H)
                                                                                     <span class="caret-wrapper">
-                                                                                        <i class="sort-caret ascending"></i>
-                                                                                        <i class="sort-caret descending"></i>
+                                                                                        <i
+                                                                                            class="sort-caret ascending"></i>
+                                                                                        <i
+                                                                                            class="sort-caret descending"></i>
                                                                                     </span>
                                                                                 </div>
                                                                             </th>
@@ -764,27 +832,27 @@
                                                     <div data-v-68a1faa6="" class="kline-header fix">
                                                         <ul data-v-68a1faa6="" class="fl kline-info-list">
                                                             <li data-v-68a1faa6="" class="li-name">
-                                                                <img data-v-68a1faa6="" width="36" height="36" src="https://static.huobi.co.kr/huobicokrimg/20190628/9abf0d3324184e45baacbbd8b914a5a5" class="font-currency fl" id="currency-image">
+                                                                <img data-v-68a1faa6="" width="36" height="36" src="" class="font-currency fl" id="currency-image">
                                                                 <div data-v-68a1faa6="" class="coin-name fl">
-                                                                    <h2 data-v-68a1faa6="" class="seo-tag translate-name">비트코인</h2>
+                                                                    <h2 data-v-68a1faa6="" class="seo-tag translate-name">--</h2>
                                                                     <h2 data-v-68a1faa6="" class="seo-tag text-tips">
-                                                                        <span data-v-68a1faa6="">BTC</span>/<span data-v-68a1faa6="" class="quote-coin">KRW</span>
+                                                                        <span data-v-68a1faa6="">--</span>/<span data-v-68a1faa6="" class="quote-coin">--</span>
                                                                     </h2>
                                                                 </div>
                                                                 <!---->
-                                                                <ul data-v-68a1faa6="" class="other-box border-table main-bg box-shadow-gray">
+                                                                <ul data-v-68a1faa6="" class="other-box border-table main-bg box-shadow-gray" id="other-coin-market-box">
                                                                     <li data-v-68a1faa6="" class="clear-fix text-main">
                                                                         <span data-v-68a1faa6="" class="fl">
-                                                                            BTC/USDT
+                                                                            --
                                                                         </span> <span data-v-68a1faa6="" class="fr text-down">
-                                                                            -2.94%
+                                                                            0%
                                                                         </span>
                                                                     </li>
                                                                     <li data-v-68a1faa6="" class="clear-fix text-main">
                                                                         <span data-v-68a1faa6="" class="fl">
-                                                                            BTC/KRW
+                                                                            --
                                                                         </span> <span data-v-68a1faa6="" class="fr text-down">
-                                                                            -2.34%
+                                                                            0%
                                                                         </span>
                                                                     </li>
                                                                 </ul>
@@ -793,7 +861,7 @@
                                                             <li data-v-68a1faa6="" growing-ignore="true" class="price-box border-nav-left">
                                                                 <p data-v-68a1faa6="" class="text-subtitle" id="recent-price-holder">
                                                                     <span data-v-68a1faa6="" class="recent-price font-bold text-down" id="trading-view-recent-price">
-                                                                        50,000,000
+                                                                        0
                                                                     </span>
 
                                                                     <!---->
@@ -801,12 +869,13 @@
                                                                 <p data-v-68a1faa6="" class="bottom text-subtitle">
                                                                     <span data-v-68a1faa6="">
                                                                         전일대비 &nbsp;
-                                                                    </span> <span data-v-68a1faa6="" class="text-down" id="trading-view-change-rate">
-                                                                        -2.34% &nbsp;
-                                                                    </span> <span data-v-68a1faa6="" class="text-down" id="trading-view-change-diff">
-                                                                        -1,200,000.00
                                                                     </span>
-                                                                    <!---->
+                                                                    <span data-v-68a1faa6="" class="text-down" id="trading-view-change-rate">
+                                                                        0% &nbsp;
+                                                                    </span>
+                                                                    <span data-v-68a1faa6="" class="text-down" id="trading-view-change-diff">
+                                                                        0
+                                                                    </span>
                                                                 </p>
                                                             </li>
                                                         </ul>
@@ -816,8 +885,9 @@
                                                                     <span data-v-68a1faa6="" class="fl">고가</span>
                                                                     <span data-v-68a1faa6="" class="fr">
                                                                         <span data-v-68a1faa6=""
-                                                                            class="span-r rate-color font-bold text-up" id="trading-view-high-price">
-                                                                            52,500,000
+                                                                            class="span-r rate-color font-bold text-up"
+                                                                            id="trading-view-high-price">
+                                                                            0
                                                                         </span>
                                                                     <!---->
                                                                     </span>
@@ -826,8 +896,9 @@
                                                                     <span data-v-68a1faa6="" class="fl">저가</span>
                                                                     <span data-v-68a1faa6="" class="fr">
                                                                         <span data-v-68a1faa6=""
-                                                                            class="span-r rate-color font-bold text-down" id="trading-view-low-price">
-                                                                            48,208,000
+                                                                            class="span-r rate-color font-bold text-down"
+                                                                            id="trading-view-low-price">
+                                                                            0
                                                                         </span>
                                                                     <!---->
                                                                     </span>
@@ -835,15 +906,19 @@
                                                             </li>
                                                             <li data-v-68a1faa6="" class="li-right">
                                                                 <p data-v-68a1faa6="" class="bottom clear-fix text-subtitle"><span data-v-68a1faa6="" class="fl">거래량(24H)</span>
-                                                                    <span data-v-68a1faa6="" class="fr text-main"><span
-                                                                            data-v-68a1faa6="" class="font-bold" id="trading-view-amount">
-                                                                            169.6679
-                                                                        </span> <i data-v-68a1faa6="" class="text-subtitle">BTC</i></span>
+                                                                    <span data-v-68a1faa6="" class="fr text-main">
+                                                                        <span data-v-68a1faa6="" class="font-bold"
+                                                                            id="trading-view-amount">
+                                                                            0
+                                                                        </span>
+                                                                    <i data-v-68a1faa6="" class="text-subtitle" id="trading-view-amount-currency">--</i>
+                                                                    </span>
                                                                 </p>
                                                                 <p data-v-68a1faa6="" class="bottom bot-box clear-fix text-subtitle"><span data-v-68a1faa6="" class="fl">거래대금</span> <span data-v-68a1faa6="" class="fr text-main"><span
-                                                                            data-v-68a1faa6="" class="font-bold" id="trading-view-volume">
-                                                                            8,579,123,277.4030
-                                                                        </span> <i data-v-68a1faa6="" class="text-subtitle">KRW</i></span>
+                                                                            data-v-68a1faa6="" class="font-bold"
+                                                                            id="trading-view-volume">
+                                                                            0
+                                                                        </span> <i data-v-68a1faa6="" class="text-subtitle" id="trading-view-volume-currency">--</i></span>
                                                                 </p>
                                                             </li>
                                                         </ul>

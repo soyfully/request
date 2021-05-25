@@ -20,17 +20,14 @@ from BaseApi.Huobi.base_huobi import HuobiWebsocketClient, BaseHuobi
 from Util.pyinstaller_patch import debugger
 
 
-HOUBI_WEBSOCKET_URL = "wss://api-cloud.huobi.co.kr/ws"
-
-
 class MainPageHandler(RequestHandler):
     def get(self):
         self.render('huobi_coin_table.html')
 
 
 class TradingViewPageHandler(RequestHandler):
-    def get(self):
-        self.render('huobi_trading_view.html')
+    def get(self, currency_with_market):
+        self.render('huobi_trading_view.html', currency_with_market=currency_with_market)
 
 
 class ClientManagerThread(threading.Thread):
